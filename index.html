@@ -2,449 +2,442 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- 加入 theme-color 讓手機瀏覽器狀態列也能吃到顏色 -->
-    <meta name="theme-color" id="theme-color" content="#800000">
-    <title>ˊ˗簽ˏˋ名₊·—̳͟͞͞簿₊· v1.9</title>
-    <!-- 引入指定的字型 Solway Medium 500 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nearest Station Finder</title>
+    
+    <!-- 引入 Google Fonts: Bebas Neue 與 Bitcount Single (或相近像素字體作為備用) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Solway:wght@500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Silkscreen&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
     
     <style>
-        
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        
-        html, body { 
-            background-color: #800000; 
-            overflow: hidden; 
+        /* 定義字型備用機制，若 Bitcount Single 讀取失敗，將使用其他像素字型 */
+        @import url('https://fonts.googleapis.com/css2?family=Bitcount+Single&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #313131; /* 1. 背景顏色：#313131 */
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
             font-family: sans-serif;
-            
+            transition: background-color 0.5s ease;
         }
 
-        /* ----- 封面 (載入時的畫面) ----- */
-        #cover {
-            position: fixed;
-            inset: 0;
-            background-color: #800000;
-            z-index: 100;
-            display: flex;
-            flex-direction: column; /* 改為垂直排列以容納載入文字 */
-            justify-content: center;
-            align-items: center;
-            transition: opacity 0.5s ease;
-        }
-        #title-btn {
-            max-width: 25vw;
-            max-height: 25vh;
+        /* 按鈕樣式 */
+        #btn-miss-you {
+            background-color: #ffffff; /* 白底 */
+            color: #313131; /* 修改：文字顏色為 #313131 */
+            font-family: 'Bebas Neue', sans-serif; /* 字型 Bebas Neue */
+            font-size: clamp(20px, 5vw, 24px); 
+            /* 修改 1：增加文字間距 (letter-spacing) 到原本的兩倍左右 */
+            letter-spacing: 4px; 
+            border: none;
+            border-radius: 999px; /* 圓角按鈕 */
+            /* 修改 1：將 padding 縮小，讓按鈕整體變小一點 */
+            padding: 1.5% 6%; 
             cursor: pointer;
-            pointer-events: none; /* 初始禁止點擊，等資料載入完才開放 */
-            transition: opacity 0.5s ease;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s ease, opacity 0.5s ease;
+            line-height: 1;
+            text-align: center;
         }
 
-        /* 載入中的呼吸動畫 */
-        .loading-pulse {
-            animation: title-pulse 1.5s infinite ease-in-out;
+        #btn-miss-you:hover {
+            transform: scale(1.05);
         }
 
-        @keyframes title-pulse {
-            0%, 100% { opacity: 0.5; }
-            50% { opacity: 0.75; }
+        #btn-miss-you:active {
+            transform: scale(0.95);
         }
 
-        /* ----- 互動頁 (簽名簿) ----- */
-        #app {
-            position: fixed;
-            inset: 0;
-            z-index: 1;
-            display: none; /* 預設隱藏，點擊封面後顯示 */
-            opacity: 0; /* 預設全透明，供淡入動畫使用 */
-            transition: opacity 0.5s ease; /* 與封面淡出同速率的淡入效果 */
-        }
-
-        /* 水平滑動區域 */
-        .scroll-container {
-            width: 100vw;
-            height: 100dvh; /* 使用 dvh 避免手機瀏覽器網址列干擾 */
-            overflow-x: auto;
-            overflow-y: hidden;
-            scroll-behavior: smooth; /* 平滑捲動 */
-            -webkit-overflow-scrolling: touch; /* 確保 iOS Safari 順暢滑動 */
-            /* 隱藏滾動條提升美觀 (依瀏覽器支援) */
-            scrollbar-width: none; 
-        }
-        .scroll-container::-webkit-scrollbar {
-            display: none;
-        }
-
-        /* 簽名軌道 (存放所有格子) */
-        .track {
-            display: inline-flex;
-            align-items: center;
-            height: 100dvh;
-            /* 利用 padding 將第一個格子推到正中央： 50vw - 一半的格子寬度(31.875dvh / 2) */
-            padding-left: calc(50vw - 15.9375dvh);
-            padding-right: 50vw; /* 右側預留空白，讓最後一個也能滑到中間 */
-            
-            /* 將背景圖套用在軌道上，使其跟隨滑動並無縫複製 */
-            background-image: url('bg.png');
-            background-repeat: repeat;
-            background-position: left center;
-            background-size: auto 100dvh; /* 直式螢幕預設：高度撐滿，寬度等比縮放並無縫重複 */
-        }
-
-        /* 橫式螢幕：寬度撐滿，高度等比縮放並無縫重複 */
-        @media (min-aspect-ratio: 1/1) {
-            .track {
-                background-size: 100vw auto;
-            }
-        }
-
-        /* 單一簽名格子的通用樣式 */
-        .cell {
-            width: 31.875dvh;  /* 比例 3:8，高度 85dvh，因此寬度為 31.875dvh */
-            height: 85dvh;
-            border: 7.5px solid #b60000;
-            margin-right: -7.5px; /* 讓框線重疊，變成只有一條線 */
-            flex-shrink: 0;
-            background-color: transparent; /* 背景透明，透出底圖 */
-            display: flex;
+        /* 結果顯示區塊，預設隱藏 */
+        #result-container {
+            display: none; /* 初始隱藏 */
             flex-direction: column;
-            position: relative;
-        }
-
-        /* 距離主框線 5px 的 1px 內部裝飾細線 */
-        .cell::before {
-            content: "";
-            position: absolute;
-            top: 5px;
-            bottom: 5px;
-            left: 5px;
-            right: 5px;
-            border: 1px solid #b60000;
-            pointer-events: none; /* 確保不會阻擋畫布的繪圖事件 */
-            z-index: 10; /* 確保線條疊在內容之上 */
-        }
-
-        /* 針對第一個空白的簽名格，底部框線要避開 40px 高的按鈕 (5px + 40px = 45px) */
-        #active-cell::before {
-            bottom: 45px;
-        }
-
-        /* 畫布區域 */
-        .canvas-container {
-            flex-grow: 1; /* 佔滿剩餘高度 */
-            width: 100%;
-            position: relative;
-        }
-        canvas {
-            width: 100%;
-            height: 100%;
-            display: block;
-            touch-action: none;
-            cursor: crosshair;
-        }
-
-        /* 底部控制列 (包含按鈕) */
-        .controls {
-            height: 40px; 
-            width: 100%;
-            display: flex;
-            background-color: #b60000; 
-        }
-        
-        .btn {
-            flex: 1; /* 寬度佔一半 */
-            display: flex;
             justify-content: center;
-            align-items: center;
-            padding-top: 3px; /* 將文字位置往下微調 3px */
-            color: white;
-            font-family: 'Solway', serif;
-            font-weight: 500;
-            font-size: 2.25dvh; /* 畫面的相對大小，約為原來的75% */
-            cursor: pointer;
-            user-select: none;
-            transition: opacity 0.2s;
+            align-items: center; /* 4. 上下左右置中對齊 */
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            text-align: center;
         }
 
-        /* 過去的簽名格內的圖片 */
-        .past-cell img {
-            width: 100%;
-            height: calc(100% - 40px); /* 保持與畫布繪圖區域比例相同 */
-            object-fit: contain;
-            object-position: top;
-            pointer-events: none;
+        /* 站名上方的小字 */
+        #subtitle {
+            color: #8e8d8d; /* 顏色 #8e8d8d */
+            font-family: 'Bebas Neue', sans-serif; /* 字型 Bebas Neue */
+            font-size: clamp(16px, 4vw, 24px);
+            letter-spacing: 2px;
+            /* 修改 2：縮小下方 margin，拉近與站名的距離 */
+            margin-bottom: 10px; 
+            /* 修改 2：確保小字在站名上層，避免被大字的行高遮擋 */
+            position: relative;
+            z-index: 10;
+        }
+
+        /* 火車站站名英文 */
+        #station-name {
+            color: #6cdd96; /* 顏色 #6cdd96 */
+            font-family: 'Bitcount Single', 'Silkscreen', 'DotGothic16', monospace; 
+            font-size: clamp(60px, 15vw, 310px); 
+            font-weight: 400;
+            margin: 0;
+            text-transform: uppercase;
+            /* 修改 2：縮小行高 (line-height) 讓文字更緊湊 */
+            line-height: 0.8; 
         }
 
     </style>
 </head>
 <body>
 
-    <!-- 1. 封面區 -->
-    <div id="cover">
-        <img src="title.png" alt="Sign me in" id="title-btn" class="loading-pulse">
+    <!-- 初始按鈕 -->
+    <button id="btn-miss-you">Miss You...</button>
+
+    <!-- 偵測完成後顯示的結果區塊 -->
+    <div id="result-container">
+        <div id="subtitle">THE NEAREST STATION</div>
+        <h1 id="station-name">Loading...</h1>
     </div>
 
-    <!-- 2. 簽名互動區 -->
-    <div id="app">
-        <div class="scroll-container" id="scroll-container">
-            <div class="track" id="track">
-                
-                <!-- 空白的簽名格 (永遠在最左側，索引 0) -->
-                <div class="cell" id="active-cell">
-                    <div class="canvas-container" id="canvas-container">
-                        <canvas id="drawing-board"></canvas>
-                    </div>
-                    <div class="controls">
-                        <div class="btn" id="btn-clear">clear</div>
-                        <div class="btn" id="btn-send">send</div>
-                    </div>
-                </div>
+    <script>
+        // 內建你提供的所有車站清單 (stations.json)
+        const stations = [
+          { "id": "0900", "name": "Keelung", "lat": 25.13191, "lon": 121.73837 },
+          { "id": "0910", "name": "Sankeng", "lat": 25.12305, "lon": 121.74202 },
+          { "id": "0920", "name": "Badu", "lat": 25.10838, "lon": 121.72904 },
+          { "id": "0930", "name": "Qidu", "lat": 25.09294, "lon": 121.71415 },
+          { "id": "0940", "name": "Baifu", "lat": 25.07795, "lon": 121.69379 },
+          { "id": "0950", "name": "Wudu", "lat": 25.07799, "lon": 121.66758 },
+          { "id": "0960", "name": "Xizhi", "lat": 25.0679, "lon": 121.66113 },
+          { "id": "0970", "name": "Xike", "lat": 25.06406, "lon": 121.65233 },
+          { "id": "0980", "name": "Nangang", "lat": 25.05348, "lon": 121.60706 },
+          { "id": "0990", "name": "Songshan", "lat": 25.04927, "lon": 121.57906 },
+          { "id": "1000", "name": "Taipei", "lat": 25.04775, "lon": 121.51711 },
+          { "id": "1001", "name": "Taipei Surround Island", "lat": 25.04774, "lon": 121.51711 },
+          { "id": "1010", "name": "Wanhua", "lat": 25.03339, "lon": 121.49996 },
+          { "id": "1020", "name": "Banqiao", "lat": 25.01434, "lon": 121.46377 },
+          { "id": "1030", "name": "Fuzhou", "lat": 25.00419, "lon": 121.44477 },
+          { "id": "1040", "name": "Shulin", "lat": 24.99123, "lon": 121.42442 },
+          { "id": "1050", "name": "South Shulin", "lat": 24.98044, "lon": 121.40884 },
+          { "id": "1060", "name": "Shanjia", "lat": 24.97273, "lon": 121.39254 },
+          { "id": "1070", "name": "Yingge", "lat": 24.95455, "lon": 121.35517 },
+          { "id": "1075", "name": "Fengming", "lat": 24.97268, "lon": 121.33658 },
+          { "id": "1080", "name": "Taoyuan", "lat": 24.98888, "lon": 121.31449 },
+          { "id": "1090", "name": "Neili", "lat": 24.97281, "lon": 121.25826 },
+          { "id": "1100", "name": "Zhongli_Taoyuan", "lat": 24.95374, "lon": 121.22589 },
+          { "id": "1110", "name": "Puxin", "lat": 24.91939, "lon": 121.18363 },
+          { "id": "1120", "name": "Yangmei", "lat": 24.91427, "lon": 121.14637 },
+          { "id": "1130", "name": "Fugang", "lat": 24.93436, "lon": 121.08309 },
+          { "id": "1140", "name": "Xinfu", "lat": 24.93109, "lon": 121.06751 },
+          { "id": "1150", "name": "Beihu", "lat": 24.92218, "lon": 121.05575 },
+          { "id": "1160", "name": "Hukou", "lat": 24.90303, "lon": 121.04412 },
+          { "id": "1170", "name": "Xinfeng", "lat": 24.86939, "lon": 120.99626 },
+          { "id": "1180", "name": "Zhubei", "lat": 24.83919, "lon": 121.00946 },
+          { "id": "1190", "name": "North Hsinchu", "lat": 24.80875, "lon": 120.98381 },
+          { "id": "1191", "name": "Qianjia", "lat": 24.80657, "lon": 121.0034 },
+          { "id": "1192", "name": "Xinzhuang", "lat": 24.78811, "lon": 121.02196 },
+          { "id": "1193", "name": "Zhuzhong", "lat": 24.78145, "lon": 121.03141 },
+          { "id": "1194", "name": "Liujia", "lat": 24.80766, "lon": 121.03941 },
+          { "id": "1201", "name": "Shangyuan", "lat": 24.77776, "lon": 121.05582 },
+          { "id": "1202", "name": "Ronghua", "lat": 24.74839, "lon": 121.08319 },
+          { "id": "1203", "name": "Zhudong", "lat": 24.73823, "lon": 121.09472 },
+          { "id": "1204", "name": "Hengshan", "lat": 24.72041, "lon": 121.11772 },
+          { "id": "1205", "name": "Jiuzantou", "lat": 24.72062, "lon": 121.13622 },
+          { "id": "1206", "name": "Hexing", "lat": 24.71667, "lon": 121.15437 },
+          { "id": "1207", "name": "Fugui", "lat": 24.71551, "lon": 121.16743 },
+          { "id": "1208", "name": "Neiwan", "lat": 24.70535, "lon": 121.18255 },
+          { "id": "1210", "name": "Hsinchu", "lat": 24.80157, "lon": 120.97157 },
+          { "id": "1220", "name": "Sanxingqiao", "lat": 24.78731, "lon": 120.92844 },
+          { "id": "1230", "name": "Xiangshan", "lat": 24.76311, "lon": 120.91388 },
+          { "id": "1240", "name": "Qiding", "lat": 24.72291, "lon": 120.87183 },
+          { "id": "1250", "name": "Zhunan", "lat": 24.68654, "lon": 120.88041 },
+          { "id": "1998", "name": "Shulin Rail Yard", "lat": 24.97992, "lon": 121.40554 },
+          { "id": "2110", "name": "Tanwen", "lat": 24.65641, "lon": 120.85825 },
+          { "id": "2120", "name": "Dashan", "lat": 24.64565, "lon": 120.80376 },
+          { "id": "2130", "name": "Houlong", "lat": 24.61621, "lon": 120.78731 },
+          { "id": "2140", "name": "Longgang", "lat": 24.61169, "lon": 120.75812 },
+          { "id": "2150", "name": "Baishatun", "lat": 24.56481, "lon": 120.70824 },
+          { "id": "2160", "name": "Xinpu", "lat": 24.54018, "lon": 120.69518 },
+          { "id": "2170", "name": "Tongxiao", "lat": 24.49141, "lon": 120.67843 },
+          { "id": "2180", "name": "Yuanli", "lat": 24.44344, "lon": 120.65146 },
+          { "id": "2190", "name": "Rinan", "lat": 24.37815, "lon": 120.65412 },
+          { "id": "2200", "name": "Dajia", "lat": 24.34448, "lon": 120.62702 },
+          { "id": "2210", "name": "Taichung Port", "lat": 24.30441, "lon": 120.60231 },
+          { "id": "2220", "name": "Qingshui", "lat": 24.26364, "lon": 120.56918 },
+          { "id": "2230", "name": "Shalu", "lat": 24.23702, "lon": 120.55752 },
+          { "id": "2240", "name": "Longjing", "lat": 24.19748, "lon": 120.54335 },
+          { "id": "2250", "name": "Dadu", "lat": 24.15417, "lon": 120.54249 },
+          { "id": "2260", "name": "Zhuifen", "lat": 24.12051, "lon": 120.57018 },
+          { "id": "3140", "name": "Zaoqiao", "lat": 24.64186, "lon": 120.86721 },
+          { "id": "3150", "name": "Fengfu", "lat": 24.60429, "lon": 120.82637 },
+          { "id": "3160", "name": "Miaoli", "lat": 24.57001, "lon": 120.82233 },
+          { "id": "3170", "name": "Nanshi", "lat": 24.52246, "lon": 120.79154 },
+          { "id": "3180", "name": "Tongluo", "lat": 24.48634, "lon": 120.78617 },
+          { "id": "3190", "name": "Sanyi", "lat": 24.42066, "lon": 120.77393 },
+          { "id": "3210", "name": "Tai'an", "lat": 24.33146, "lon": 120.74181 },
+          { "id": "3220", "name": "Houli", "lat": 24.30933, "lon": 120.73288 },
+          { "id": "3230", "name": "Fengyuan", "lat": 24.25438, "lon": 120.72374 },
+          { "id": "3240", "name": "Lilin", "lat": 24.23461, "lon": 120.7106 },
+          { "id": "3250", "name": "Tanzi", "lat": 24.21214, "lon": 120.70564 },
+          { "id": "3260", "name": "Toujiacuo", "lat": 24.19572, "lon": 120.70398 },
+          { "id": "3270", "name": "Songzhu", "lat": 24.18035, "lon": 120.70193 },
+          { "id": "3280", "name": "Taiyuan", "lat": 24.16449, "lon": 120.69988 },
+          { "id": "3290", "name": "Jingwu", "lat": 24.14887, "lon": 120.69784 },
+          { "id": "3300", "name": "Taichung", "lat": 24.13728, "lon": 120.68691 },
+          { "id": "3310", "name": "Wuquan", "lat": 24.12877, "lon": 120.66654 },
+          { "id": "3320", "name": "Daqing", "lat": 24.11911, "lon": 120.64795 },
+          { "id": "3330", "name": "Wuri", "lat": 24.10867, "lon": 120.62244 },
+          { "id": "3340", "name": "Xinwuri", "lat": 24.10937, "lon": 120.61421 },
+          { "id": "3350", "name": "Chenggong", "lat": 24.11424, "lon": 120.59021 },
+          { "id": "3360", "name": "Changhua", "lat": 24.08177, "lon": 120.53854 },
+          { "id": "3370", "name": "Huatan", "lat": 24.02502, "lon": 120.53742 },
+          { "id": "3380", "name": "Dacun", "lat": 23.99002, "lon": 120.56062 },
+          { "id": "3390", "name": "Yuanlin", "lat": 23.95947, "lon": 120.56977 },
+          { "id": "3400", "name": "Yongjing", "lat": 23.92808, "lon": 120.57173 },
+          { "id": "3410", "name": "Shetou", "lat": 23.89573, "lon": 120.58077 },
+          { "id": "3420", "name": "Tianzhong", "lat": 23.85843, "lon": 120.59146 },
+          { "id": "3430", "name": "Ershui", "lat": 23.81321, "lon": 120.61805 },
+          { "id": "3431", "name": "Yuanquan", "lat": 23.79845, "lon": 120.64211 },
+          { "id": "3432", "name": "Zhuoshui", "lat": 23.83467, "lon": 120.70467 },
+          { "id": "3433", "name": "Longquan", "lat": 23.83521, "lon": 120.75014 },
+          { "id": "3434", "name": "Jiji", "lat": 23.82647, "lon": 120.78495 },
+          { "id": "3435", "name": "Shuili", "lat": 23.81845, "lon": 120.85332 },
+          { "id": "3436", "name": "Checheng", "lat": 23.83263, "lon": 120.86572 },
+          { "id": "3450", "name": "Linnei", "lat": 23.75967, "lon": 120.61499 },
+          { "id": "3460", "name": "Shiliu", "lat": 23.73167, "lon": 120.57998 },
+          { "id": "3470", "name": "Douliu", "lat": 23.71184, "lon": 120.54099 },
+          { "id": "3480", "name": "Dounan", "lat": 23.67257, "lon": 120.48089 },
+          { "id": "3490", "name": "Shigui", "lat": 23.63951, "lon": 120.47106 },
+          { "id": "4050", "name": "Dalin", "lat": 23.60089, "lon": 120.45597 },
+          { "id": "4060", "name": "Minxiong", "lat": 23.55522, "lon": 120.43165 },
+          { "id": "4070", "name": "Jiabei", "lat": 23.49981, "lon": 120.44851 },
+          { "id": "4080", "name": "Chiayi", "lat": 23.47915, "lon": 120.44114 },
+          { "id": "4090", "name": "Shuishang", "lat": 23.43398, "lon": 120.39971 },
+          { "id": "4100", "name": "Nanjing", "lat": 23.41344, "lon": 120.38654 },
+          { "id": "4110", "name": "Houbi", "lat": 23.36626, "lon": 120.36058 },
+          { "id": "4120", "name": "Xinying", "lat": 23.30673, "lon": 120.32307 },
+          { "id": "4130", "name": "Liuying", "lat": 23.27762, "lon": 120.32252 },
+          { "id": "4140", "name": "Linfengying", "lat": 23.24259, "lon": 120.32107 },
+          { "id": "4150", "name": "Longtian", "lat": 23.19271, "lon": 120.31917 },
+          { "id": "4160", "name": "Balin", "lat": 23.17284, "lon": 120.32125 },
+          { "id": "4170", "name": "Shanhua", "lat": 23.13333, "lon": 120.30653 },
+          { "id": "4180", "name": "Nanke", "lat": 23.10726, "lon": 120.30202 },
+          { "id": "4190", "name": "Xinshi", "lat": 23.06823, "lon": 120.29004 },
+          { "id": "4200", "name": "Yongkang", "lat": 23.03825, "lon": 120.25347 },
+          { "id": "4210", "name": "Daqiao", "lat": 23.01923, "lon": 120.22429 },
+          { "id": "4220", "name": "Tainan", "lat": 22.99681, "lon": 120.21295 },
+          { "id": "4250", "name": "Bao'an", "lat": 22.93296, "lon": 120.23158 },
+          { "id": "4260", "name": "Rende", "lat": 22.92354, "lon": 120.24054 },
+          { "id": "4270", "name": "Zhongzhou", "lat": 22.90446, "lon": 120.25284 },
+          { "id": "4271", "name": "Chang Jung Christian University", "lat": 22.90729, "lon": 120.27263 },
+          { "id": "4272", "name": "Shalun", "lat": 22.92407, "lon": 120.28622 },
+          { "id": "4290", "name": "Dahu", "lat": 22.87821, "lon": 120.25384 },
+          { "id": "4300", "name": "Luzhu", "lat": 22.85404, "lon": 120.26619 },
+          { "id": "4310", "name": "Gangshan", "lat": 22.79223, "lon": 120.30004 },
+          { "id": "4320", "name": "Qiaotou", "lat": 22.76098, "lon": 120.31011 },
+          { "id": "4330", "name": "Nanzi", "lat": 22.72696, "lon": 120.32425 },
+          { "id": "4340", "name": "Xinzuoying", "lat": 22.68754, "lon": 120.30678 },
+          { "id": "4350", "name": "Zuoying", "lat": 22.67445, "lon": 120.29401 },
+          { "id": "4360", "name": "Neiwei", "lat": 22.66589, "lon": 120.28701 },
+          { "id": "4370", "name": "Museum of Fine Arts", "lat": 22.65185, "lon": 120.28148 },
+          { "id": "4380", "name": "Gushan", "lat": 22.64181, "lon": 120.28071 },
+          { "id": "4390", "name": "Sankuaicuo", "lat": 22.63931, "lon": 120.29414 },
+          { "id": "4400", "name": "Kaohsiung", "lat": 22.63946, "lon": 120.30292 },
+          { "id": "4410", "name": "Minzu", "lat": 22.63879, "lon": 120.31494 },
+          { "id": "4420", "name": "Science And Technology Museum", "lat": 22.63709, "lon": 120.32603 },
+          { "id": "4430", "name": "Zhengyi", "lat": 22.63425, "lon": 120.34245 },
+          { "id": "4440", "name": "Fongshan", "lat": 22.63145, "lon": 120.35745 },
+          { "id": "4450", "name": "Houzhuang", "lat": 22.64016, "lon": 120.39131 },
+          { "id": "4460", "name": "Jiuqutang", "lat": 22.65641, "lon": 120.42089 },
+          { "id": "4470", "name": "Liukuaicuo", "lat": 22.66597, "lon": 120.46497 },
+          { "id": "5000", "name": "Pingtung", "lat": 22.66905, "lon": 120.48617 },
+          { "id": "5010", "name": "Guilai", "lat": 22.65246, "lon": 120.50263 },
+          { "id": "5020", "name": "Linluo", "lat": 22.63481, "lon": 120.51432 },
+          { "id": "5030", "name": "Xishi", "lat": 22.61637, "lon": 120.52649 },
+          { "id": "5040", "name": "Zhutian", "lat": 22.58658, "lon": 120.53978 },
+          { "id": "5050", "name": "Chaozhou", "lat": 22.55008, "lon": 120.53604 },
+          { "id": "5060", "name": "Kanding", "lat": 22.51311, "lon": 120.51481 },
+          { "id": "5070", "name": "Nanzhou", "lat": 22.49207, "lon": 120.51174 },
+          { "id": "5080", "name": "Zhen'an", "lat": 22.45794, "lon": 120.51129 },
+          { "id": "5090", "name": "Linbian", "lat": 22.43135, "lon": 120.51529 },
+          { "id": "5100", "name": "Jiadong", "lat": 22.41409, "lon": 120.54774 },
+          { "id": "5110", "name": "Donghai", "lat": 22.39897, "lon": 120.57236 },
+          { "id": "5120", "name": "Fangliao", "lat": 22.36802, "lon": 120.59511 },
+          { "id": "5130", "name": "Jialu", "lat": 22.33085, "lon": 120.62445 },
+          { "id": "5140", "name": "Neishi", "lat": 22.30617, "lon": 120.64331 },
+          { "id": "5160", "name": "Fangshan", "lat": 22.26704, "lon": 120.65947 },
+          { "id": "5170", "name": "Fangye", "lat": 22.28091, "lon": 120.71709 },
+          { "id": "5190", "name": "Dawu", "lat": 22.36526, "lon": 120.90094 },
+          { "id": "5200", "name": "Longxi", "lat": 22.46102, "lon": 120.94176 },
+          { "id": "5210", "name": "Jinlun", "lat": 22.53161, "lon": 120.96721 },
+          { "id": "5220", "name": "Taimali", "lat": 22.61883, "lon": 121.00492 },
+          { "id": "5230", "name": "Zhiben", "lat": 22.71022, "lon": 121.06068 },
+          { "id": "5240", "name": "Kangle", "lat": 22.76426, "lon": 121.09356 },
+          { "id": "5998", "name": "South", "lat": 22.52755, "lon": 120.53658 },
+          { "id": "5999", "name": "Chaozhou Railway Workshop", "lat": 22.52231, "lon": 120.52642 },
+          { "id": "6000", "name": "Taitung", "lat": 22.79372, "lon": 121.1231 },
+          { "id": "6010", "name": "Shanli", "lat": 22.86194, "lon": 121.13778 },
+          { "id": "6020", "name": "Luye", "lat": 22.91249, "lon": 121.13701 },
+          { "id": "6030", "name": "Ruiyuan", "lat": 22.95604, "lon": 121.15901 },
+          { "id": "6040", "name": "Ruihe", "lat": 22.97997, "lon": 121.15595 },
+          { "id": "6050", "name": "Guanshan", "lat": 23.04566, "lon": 121.1643 },
+          { "id": "6060", "name": "Haiduan", "lat": 23.10292, "lon": 121.17676 },
+          { "id": "6070", "name": "Chishang", "lat": 23.12613, "lon": 121.21949 },
+          { "id": "6080", "name": "Fuli", "lat": 23.17924, "lon": 121.24864 },
+          { "id": "6090", "name": "Dongzhu", "lat": 23.22605, "lon": 121.27842 },
+          { "id": "6100", "name": "Dongli", "lat": 23.27234, "lon": 121.30418 },
+          { "id": "6110", "name": "Yuli", "lat": 23.33155, "lon": 121.31172 },
+          { "id": "6120", "name": "Sanmin", "lat": 23.42458, "lon": 121.34539 },
+          { "id": "6130", "name": "Ruisui", "lat": 23.49738, "lon": 121.37684 },
+          { "id": "6140", "name": "Fuyuan", "lat": 23.58031, "lon": 121.38008 },
+          { "id": "6150", "name": "Dafu", "lat": 23.60571, "lon": 121.38963 },
+          { "id": "6160", "name": "Guangfu", "lat": 23.66631, "lon": 121.42117 },
+          { "id": "6170", "name": "Wanrong", "lat": 23.71199, "lon": 121.41907 },
+          { "id": "6180", "name": "Fenglin", "lat": 23.74634, "lon": 121.44701 },
+          { "id": "6190", "name": "Nanping", "lat": 23.78231, "lon": 121.45824 },
+          { "id": "6200", "name": "Linrong Shin Kong", "lat": 23.80176, "lon": 121.46169 },
+          { "id": "6210", "name": "Fengtian", "lat": 23.84842, "lon": 121.49618 },
+          { "id": "6220", "name": "Shoufeng", "lat": 23.86901, "lon": 121.51064 },
+          { "id": "6230", "name": "Pinghe", "lat": 23.88279, "lon": 121.52045 },
+          { "id": "6240", "name": "Zhixue", "lat": 23.90769, "lon": 121.5295 },
+          { "id": "6250", "name": "Ji'an", "lat": 23.96823, "lon": 121.58266 },
+          { "id": "7000", "name": "Hualien", "lat": 23.99265, "lon": 121.60131 },
+          { "id": "7010", "name": "Beipu", "lat": 24.03253, "lon": 121.60166 },
+          { "id": "7020", "name": "Jingmei", "lat": 24.09041, "lon": 121.61095 },
+          { "id": "7030", "name": "Xincheng", "lat": 24.12756, "lon": 121.64086 },
+          { "id": "7040", "name": "Chongde", "lat": 24.17199, "lon": 121.65536 },
+          { "id": "7050", "name": "Heren", "lat": 24.24225, "lon": 121.71182 },
+          { "id": "7060", "name": "Heping", "lat": 24.29839, "lon": 121.75344 },
+          { "id": "7070", "name": "Hanben", "lat": 24.33543, "lon": 121.76838 },
+          { "id": "7080", "name": "Wuta", "lat": 24.44879, "lon": 121.77601 },
+          { "id": "7090", "name": "Nan'ao", "lat": 24.46342, "lon": 121.80103 },
+          { "id": "7100", "name": "Dong'ao", "lat": 24.51827, "lon": 121.83072 },
+          { "id": "7110", "name": "Yongle", "lat": 24.56843, "lon": 121.84458 },
+          { "id": "7120", "name": "Su'ao", "lat": 24.59516, "lon": 121.85143 },
+          { "id": "7130", "name": "Su'aoxin", "lat": 24.60852, "lon": 121.82735 },
+          { "id": "7140", "name": "Xinma", "lat": 24.61541, "lon": 121.82291 },
+          { "id": "7150", "name": "Dongshan", "lat": 24.63633, "lon": 121.79211 },
+          { "id": "7160", "name": "Luodong", "lat": 24.67791, "lon": 121.77464 },
+          { "id": "7170", "name": "Zhongli_Yilan", "lat": 24.69415, "lon": 121.77526 },
+          { "id": "7180", "name": "Erjie", "lat": 24.70528, "lon": 121.77409 },
+          { "id": "7190", "name": "Yilan", "lat": 24.75457, "lon": 121.75803 },
+          { "id": "7200", "name": "Sicheng", "lat": 24.78681, "lon": 121.76271 },
+          { "id": "7210", "name": "Jiaoxi", "lat": 24.82703, "lon": 121.77535 },
+          { "id": "7220", "name": "Dingpu", "lat": 24.84391, "lon": 121.80913 },
+          { "id": "7230", "name": "Toucheng", "lat": 24.85898, "lon": 121.82258 },
+          { "id": "7240", "name": "Wai'ao", "lat": 24.88375, "lon": 121.84572 },
+          { "id": "7250", "name": "Guishan", "lat": 24.90484, "lon": 121.8689 },
+          { "id": "7260", "name": "Daxi", "lat": 24.93836, "lon": 121.88983 },
+          { "id": "7270", "name": "Dali", "lat": 24.96677, "lon": 121.92253 },
+          { "id": "7280", "name": "Shicheng", "lat": 24.97832, "lon": 121.94507 },
+          { "id": "7290", "name": "Fulong", "lat": 25.01595, "lon": 121.94471 },
+          { "id": "7300", "name": "Gongliao", "lat": 25.02197, "lon": 121.90879 },
+          { "id": "7310", "name": "Shuangxi", "lat": 25.03851, "lon": 121.86654 },
+          { "id": "7320", "name": "Mudan", "lat": 25.05871, "lon": 121.85197 },
+          { "id": "7330", "name": "Sandiaoling", "lat": 25.06555, "lon": 121.82257 },
+          { "id": "7331", "name": "Dahua", "lat": 25.04998, "lon": 121.79732 },
+          { "id": "7332", "name": "Shifen", "lat": 25.04111, "lon": 121.77514 },
+          { "id": "7333", "name": "Wanggu", "lat": 25.03445, "lon": 121.76349 },
+          { "id": "7334", "name": "Lingjiao", "lat": 25.03016, "lon": 121.74795 },
+          { "id": "7335", "name": "Pingxi", "lat": 25.02571, "lon": 121.74019 },
+          { "id": "7336", "name": "Jingtong", "lat": 25.02391, "lon": 121.72391 },
+          { "id": "7350", "name": "Houtong", "lat": 25.08702, "lon": 121.82743 },
+          { "id": "7360", "name": "Ruifang", "lat": 25.10872, "lon": 121.80599 },
+          { "id": "7361", "name": "Haikeguan", "lat": 25.13754, "lon": 121.79997 },
+          { "id": "7362", "name": "Badouzi", "lat": 25.13528, "lon": 121.80286 },
+          { "id": "7380", "name": "Sijiaoting", "lat": 25.10281, "lon": 121.76195 },
+          { "id": "7390", "name": "Nuannuan", "lat": 25.10231, "lon": 121.74031 }
+        ];
 
-                <!-- 這裡將由 Firebase 動態載入舊的簽名 -->
-                
-            </div>
-        </div>
-    </div>
+        // 綁定網頁元素
+        const btn = document.getElementById('btn-miss-you');
+        const resultContainer = document.getElementById('result-container');
+        const stationNameEl = document.getElementById('station-name');
 
-    <!-- 引入 Firebase 模組 -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-
-        // Firebase 專案設定
-        const firebaseConfig = {
-            apiKey: "AIzaSyABbvAoeAOyHeS9K4xGVzJdLC4re0PPonc",
-            authDomain: "thesign-b3e62.firebaseapp.com",
-            projectId: "thesign-b3e62",
-            storageBucket: "thesign-b3e62.firebasestorage.app",
-            messagingSenderId: "978281223711",
-            appId: "1:978281223711:web:afb6ca554b6cabd44a272a",
-            measurementId: "G-RR1RES97LY"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        // --- DOM 元素選擇 ---
-        const cover = document.getElementById('cover');
-        const titleBtn = document.getElementById('title-btn');
-        const appView = document.getElementById('app');
-        const scrollContainer = document.getElementById('scroll-container');
-        const track = document.getElementById('track');
-        const canvas = document.getElementById('drawing-board');
-        const canvasContainer = document.getElementById('canvas-container');
-        const btnClear = document.getElementById('btn-clear');
-        const btnSend = document.getElementById('btn-send');
-
-        // --- 畫布變數 ---
-        let ctx = canvas.getContext('2d');
-        let isDrawing = false;
-        let hasDrawn = false; // 判斷是否空白
-        let isDataLoaded = false; // 判斷資料庫是否完成初次載入
-        let isBgLoaded = false; // 新增：判斷背景圖是否載入完成
-        let isAppReady = false; // 新增：判斷整體是否皆載入完成
-
-        // --- 預載背景圖片 ---
-        const preloadBg = new Image();
-        preloadBg.onload = () => {
-            isBgLoaded = true;
-            checkAppReady(); // 檢查雙方是否都準備好
-        };
-        preloadBg.onerror = () => {
-            // 移除 console.error 以避免在找不到圖片時跳出錯誤提示干擾
-            isBgLoaded = true; // 防呆機制：若圖片失效仍強制放行，避免永遠卡在載入中
-            checkAppReady();
-        };
-        // 確保在綁定 onload 與 onerror 事件之後，才賦予 src 開始載入 (最佳實踐)
-        preloadBg.src = 'bg.png';
-
-        // --- 檢查是否允許進入互動頁 ---
-        function checkAppReady() {
-            if (isDataLoaded && isBgLoaded && !isAppReady) {
-                isAppReady = true;
-                titleBtn.classList.remove('loading-pulse');
-                titleBtn.style.opacity = '1';
-                titleBtn.style.pointerEvents = 'auto';
-            }
+        // Haversine 公式：用來計算地球上兩個座標(經緯度)之間的最短直線距離 (公里)
+        function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+            const R = 6371; // 地球半徑 (公里)
+            const dLat = deg2rad(lat2 - lat1);
+            const dLon = deg2rad(lon2 - lon1);
+            const a =
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c; 
         }
 
-        // --- 點擊標題進入 ---
-        titleBtn.addEventListener('click', () => {
-            // 讓原本的封面層(cover)淡出
-            cover.style.opacity = '0';
-            
-            // 讓互動頁(app)設定為顯示，但保持透明
-            appView.style.display = 'block';
-            initCanvas(); // 顯示後立刻初始化畫布尺寸
-            
-            // 延遲一點點時間觸發互動頁的淡入動畫，使其與封面淡出同步
-            setTimeout(() => {
-                appView.style.opacity = '1';
-            }, 10);
-            
-            // 動畫結束後徹底隱藏封面
-            setTimeout(() => {
-                cover.style.display = 'none';
-            }, 500);
-        });
-
-        // --- 初始化畫布尺寸與筆刷 ---
-        function initCanvas() {
-            // 讓畫布像素對齊實際尺寸，避免模糊拉伸
-            const rect = canvasContainer.getBoundingClientRect();
-            canvas.width = rect.width;
-            canvas.height = rect.height;
-
-            // 細緻圓形畫筆設定 (手機版尺寸為原本75%)
-            const isMobile = window.innerWidth <= 768;
-            ctx.lineWidth = isMobile ? 11 : 16; 
-            ctx.lineCap = 'round';   // 圓形端點
-            ctx.lineJoin = 'round';  // 轉折處圓滑
-            ctx.strokeStyle = '#313131';
-            ctx.imageSmoothingEnabled = false; // 關閉像素平滑補償
+        // 角度轉弧度
+        function deg2rad(deg) {
+            return deg * (Math.PI / 180);
         }
 
-        // 當視窗縮放時重新調整畫布
-        window.addEventListener('resize', () => {
-            if (appView.style.display === 'block') {
-                // 保存原本的圖
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = canvas.width;
-                tempCanvas.height = canvas.height;
-                tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
-                
-                initCanvas();
-                
-                // 畫回去
-                ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
-            }
-        });
+        // 處理並顯示最近車站的共用函式
+        function showNearestStation(lat, lon) {
+            let nearestStation = null;
+            let minDistance = Infinity;
 
-        // --- 畫畫邏輯 ---
-        function getMousePos(e) {
-            const rect = canvas.getBoundingClientRect();
-            let clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-            let clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-            // 移除四捨五入以獲得小數點級別的精確座標，提升取樣密度
-            return {
-                x: clientX - rect.left,
-                y: clientY - rect.top
-            };
-        }
-
-        function startDrawing(e) {
-            e.preventDefault();
-            isDrawing = true;
-            const pos = getMousePos(e);
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-            // 點擊即畫下一點
-            ctx.lineTo(pos.x + 1, pos.y + 1);
-            ctx.stroke();
-            hasDrawn = true;
-        }
-
-        function draw(e) {
-            if (!isDrawing) return;
-            e.preventDefault();
-            const pos = getMousePos(e);
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-        }
-
-        function stopDrawing() {
-            if (isDrawing) {
-                isDrawing = false;
-                ctx.beginPath(); // 重置路徑
-            }
-        }
-
-        // 滑鼠事件
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseout', stopDrawing);
-
-        // 觸控事件
-        canvas.addEventListener('touchstart', startDrawing, { passive: false });
-        canvas.addEventListener('touchmove', draw, { passive: false });
-        canvas.addEventListener('touchend', stopDrawing);
-        canvas.addEventListener('touchcancel', stopDrawing);
-
-        // --- 按鈕邏輯 ---
-        function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            hasDrawn = false;
-        }
-
-        btnClear.addEventListener('click', clearCanvas);
-
-        btnSend.addEventListener('click', async () => {
-            if (!hasDrawn) return; // 畫面空白無法送出
-
-            // 按鈕加上視覺回饋
-            btnSend.textContent = "sending...";
-            btnSend.style.opacity = '0.7';
-            btnSend.style.pointerEvents = 'none';
-
-            // 將畫布轉為 Base64 圖片資料
-            const dataUrl = canvas.toDataURL("image/png");
-
-            try {
-                // 儲存到 Firestore
-                await addDoc(collection(db, "signatures"), {
-                    image: dataUrl,
-                    time: serverTimestamp()
-                });
-
-                // 成功後清空畫布，將滾動條移回最左側(置中新格子)
-                clearCanvas();
-                scrollContainer.scrollTo({ left: 0, behavior: 'smooth' });
-
-            } catch (error) {
-                console.error("writing error:", error);
-                alert("check the internet!");
-            } finally {
-                // 恢復按鈕狀態
-                btnSend.textContent = "send";
-                btnSend.style.opacity = '1';
-                btnSend.style.pointerEvents = 'auto';
-            }
-        });
-
-        // --- Firebase 監聽歷史簽名 (由新到舊排列) ---
-        const q = query(collection(db, "signatures"), orderBy("time", "desc"));
-        onSnapshot(q, (snapshot) => {
-            // 先清除畫面上舊的簽名格 (保留第一個主動繪圖格)
-            document.querySelectorAll('.past-cell').forEach(el => el.remove());
-
-            // 將資料庫抓來的每一筆都生成一個新的格子
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                if (data.image) {
-                    const newCell = document.createElement('div');
-                    newCell.className = 'cell past-cell';
-                    
-                    const img = document.createElement('img');
-                    img.src = data.image;
-                    
-                    newCell.appendChild(img);
-                    
-                    // 利用 Flexbox 由左至右排列特性，直接加入軌道後方
-                    track.appendChild(newCell);
+            // 比對所有車站，找出距離最短的那一個
+            stations.forEach(station => {
+                const dist = getDistanceFromLatLonInKm(lat, lon, station.lat, station.lon);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    nearestStation = station;
                 }
             });
 
-            // 當第一批資料載入完成時，改交由 checkAppReady 統一判斷
-            if (!isDataLoaded) {
-                isDataLoaded = true;
-                checkAppReady();
+            // 找到後更新畫面
+            if (nearestStation) {
+                // 隱藏原本的按鈕
+                btn.style.opacity = '0';
+                
+                setTimeout(() => {
+                    btn.style.display = 'none';
+                    
+                    // 填入最近的站名 (強制轉為全大寫避免字型出錯)
+                    stationNameEl.textContent = nearestStation.name.toUpperCase();
+                    
+                    // 顯示結果區塊
+                    resultContainer.style.display = 'flex';
+                    // 給一點點時間讓瀏覽器渲染 display: flex 後，再觸發 opacity 動畫
+                    setTimeout(() => {
+                        resultContainer.style.opacity = '1';
+                    }, 50);
+                }, 500); // 配合 CSS 轉場時間
+            }
+        }
+
+        // 點擊按鈕事件
+        btn.addEventListener('click', () => {
+            // 變更按鈕文字，提示正在定位
+            btn.textContent = 'LOCATING...';
+            btn.style.transform = 'scale(0.95)';
+
+            // 檢查瀏覽器是否支援 Geolocation
+            if (navigator.geolocation) {
+                // 要求取得目前位置
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        showNearestStation(position.coords.latitude, position.coords.longitude);
+                    },
+                    (error) => {
+                        // 若使用者拒絕定位、環境受限或發生超時，改用備用座標
+                        console.warn('定位受限或失敗，改用預設座標 (新北市蘆洲區):', error.message || error);
+                        // 預設 fallback 座標：蘆洲區 (Lat: 25.0822, Lon: 121.4655)
+                        showNearestStation(25.0822, 121.4655);
+                    },
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                );
+            } else {
+                // 瀏覽器不支援
+                btn.textContent = 'NOT SUPPORTED';
             }
         });
-
     </script>
 </body>
 </html>
