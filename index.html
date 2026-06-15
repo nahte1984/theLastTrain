@@ -3,22 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>theLastTrain | v1.3</title>
+    <title>theLastTrain | v1.5</title>
     
-    <!-- 引入 Google Fonts: Bebas Neue 與 Bitcount Single (或相近像素字體作為備用) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Silkscreen&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
     
     <style>
-        /* 定義字型備用機制，若 Bitcount Single 讀取失敗，將使用其他像素字型 */
         @import url('https://fonts.googleapis.com/css2?family=Bitcount+Single&display=swap');
 
         body {
             margin: 0;
             padding: 0;
-            background-color: #313131; /* 1. 背景顏色：#313131 */
+            background-color: #313131;
             height: 100vh;
             display: flex;
             justify-content: center;
@@ -28,17 +26,14 @@
             transition: background-color 0.5s ease;
         }
 
-        /* 按鈕樣式 */
         #btn-miss-you {
-            background-color: #ffffff; /* 白底 */
-            color: #313131; /* 修改：文字顏色為 #313131 */
-            font-family: 'Bebas Neue', sans-serif; /* 字型 Bebas Neue */
+            background-color: #ffffff;
+            color: #313131;
+            font-family: 'Bebas Neue', sans-serif;
             font-size: clamp(20px, 5vw, 24px); 
-            /* 修改 1：字距設定為 2px，與站名上方小字 (subtitle) 保持一致 */
             letter-spacing: 2px; 
             border: none;
-            border-radius: 999px; /* 圓角按鈕 */
-            /* 修改 2：廢棄 % 單位，改用 em 來設定 padding，讓按鈕在任何裝置上比例都完美不擠壓 */
+            border-radius: 999px;
             padding: 1em 3em; 
             cursor: pointer;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
@@ -51,94 +46,125 @@
             transform: scale(1.05);
         }
 
-        #btn-miss-you:active {
-            transform: scale(0.95);
-        }
-
-        /* 結果顯示區塊，預設隱藏 */
         #result-container {
-            display: none; /* 初始隱藏 */
+            display: none;
             flex-direction: column;
             justify-content: center;
-            align-items: center; /* 4. 上下左右置中對齊 */
+            align-items: center;
             opacity: 0;
             transition: opacity 1s ease-in-out;
             text-align: center;
-            /* 讓跑馬燈不要超出螢幕寬度，並隱藏超出的部分 */
             width: 100vw;
             overflow: hidden; 
         }
 
-        /* 站名上方的小字 */
         #subtitle {
-            color: #8e8d8d; /* 顏色 #8e8d8d */
-            font-family: 'Bebas Neue', sans-serif; /* 字型 Bebas Neue */
+            color: #8e8d8d;
+            font-family: 'Bebas Neue', sans-serif;
             font-size: clamp(16px, 4vw, 24px);
             letter-spacing: 2px;
-            /* 修改 2：縮小下方 margin，拉近與站名的距離 */
             margin-bottom: 10px; 
-            /* 修改 2：確保小字在站名上層，避免被大字的行高遮擋 */
             position: relative;
             z-index: 10;
         }
 
-        /* 跑馬燈外層容器，確保佔滿寬度且隱藏超出的字 */
         .marquee-wrapper {
             width: 100%;
             overflow: hidden;
-            white-space: nowrap; /* 強制不換行 */
+            white-space: nowrap;
         }
 
-        /* 跑馬燈動畫設定 */
         @keyframes scroll-left {
-            0% {
-                transform: translateX(100vw); /* 從畫面最右邊開始 */
-            }
-            100% {
-                transform: translateX(-100%); /* 走到完全超出畫面左邊 */
-            }
+            0% { transform: translateX(100vw); }
+            100% { transform: translateX(-100%); }
         }
 
-        /* 火車站站名英文 */
         #station-name {
-            color: #6cdd96; /* 顏色 #6cdd96 */
+            color: #6cdd96;
             font-family: 'Bitcount Single', 'Silkscreen', 'DotGothic16', monospace; 
-            /* 修改 3：字體大小加大兩倍，最大支援到 620px */
             font-size: clamp(120px, 30vw, 620px); 
             font-weight: 400;
             margin: 0;
             text-transform: uppercase;
-            /* 修改 2：縮小行高 (line-height) 讓文字更緊湊 */
             line-height: 0.8; 
-            
-            /* 跑馬燈專屬設定 */
-            display: inline-block; /* 必須是 inline-block 才能正確滾動 */
-            white-space: nowrap; /* 絕對不換行 */
-            padding-right: 50px; /* 給字尾留一點空間 */
-            
-            /* 動畫屬性：名稱 時間 線性勻速 無限循環 */
-            /* 這裡設定 15 秒，你可以調整時間來改變跑馬燈速度 */
+            display: inline-block;
+            white-space: nowrap;
+            padding-right: 50px;
             animation: scroll-left 15s linear infinite; 
         }
 
+        #train-info {
+            display: none; /* 初始隱藏，抓完資料後顯示 */
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 30px;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            z-index: 10;
+        }
+
+        .train-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 40px;
+            backdrop-filter: blur(5px);
+        }
+
+        .train-direction {
+            color: #8e8d8d;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 20px;
+            letter-spacing: 2px;
+        }
+
+        .train-detail {
+            color: #ffffff;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 28px;
+            letter-spacing: 2px;
+        }
+
+        .train-time {
+            color: #6cdd96;
+            margin-right: 10px;
+        }
     </style>
 </head>
 <body>
 
-    <!-- 初始按鈕 -->
     <button id="btn-miss-you">Miss You...</button>
 
-    <!-- 偵測完成後顯示的結果區塊 -->
     <div id="result-container">
         <div id="subtitle">THE NEAREST STATION</div>
-        <!-- 加入跑馬燈外層容器 -->
         <div class="marquee-wrapper">
             <h1 id="station-name">Loading...</h1>
+        </div>
+        
+        <div id="train-info">
+            <div class="train-card">
+                <span class="train-direction">SOUTHBOUND (順行)</span>
+                <span class="train-detail"><span class="train-time" id="south-time">--:--</span> TO <span id="south-dest">---</span></span>
+            </div>
+            <div class="train-card">
+                <span class="train-direction">NORTHBOUND (逆行)</span>
+                <span class="train-detail"><span class="train-time" id="north-time">--:--</span> TO <span id="north-dest">---</span></span>
+            </div>
         </div>
     </div>
 
     <script>
-        // 內建你提供的所有車站清單 (stations.json)
+        // ==========================================
+        // 1. TDX API 設定區 (若留空則會自動使用模擬資料)
+        // ==========================================
+        const TDX_CLIENT_ID = 'ethanchen1984-04c214cd-35f4-4327';     // 請填入你的 Client ID
+        const TDX_CLIENT_SECRET = '08274605-4c57-402b-93cc-9caabc1736cf'; // 請填入你的 Client Secret
+
+        // 內建你提供的 240+ 車站清單
         const stations = [
           { "id": "0900", "name": "Keelung", "lat": 25.13191, "lon": 121.73837 },
           { "id": "0910", "name": "Sankeng", "lat": 25.12305, "lon": 121.74202 },
@@ -387,35 +413,138 @@
           { "id": "7390", "name": "Nuannuan", "lat": 25.10231, "lon": 121.74031 }
         ];
 
-        // 綁定網頁元素
+        // UI 元素
         const btn = document.getElementById('btn-miss-you');
         const resultContainer = document.getElementById('result-container');
         const stationNameEl = document.getElementById('station-name');
+        const trainInfoEl = document.getElementById('train-info');
+        
+        const southTimeEl = document.getElementById('south-time');
+        const southDestEl = document.getElementById('south-dest');
+        const northTimeEl = document.getElementById('north-time');
+        const northDestEl = document.getElementById('north-dest');
 
-        // Haversine 公式：用來計算地球上兩個座標(經緯度)之間的最短直線距離 (公里)
+        // ==========================================
+        // 2. 距離計算邏輯 (Haversine 公式)
+        // ==========================================
         function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-            const R = 6371; // 地球半徑 (公里)
+            const R = 6371; 
             const dLat = deg2rad(lat2 - lat1);
             const dLon = deg2rad(lon2 - lon1);
-            const a =
-                Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
             return R * c; 
         }
 
-        // 角度轉弧度
-        function deg2rad(deg) {
-            return deg * (Math.PI / 180);
+        function deg2rad(deg) { return deg * (Math.PI / 180); }
+
+        // ==========================================
+        // 3. TDX API 串接與假資料產生器
+        // ==========================================
+
+        // 產生一組給展示用的假時刻表資料 (如果沒填金鑰就會用到)
+        function getMockTrainData() {
+            return {
+                south: { time: '23:45', destination: 'CHAOZHOU' },
+                north: { time: '23:58', destination: 'KEELUNG' }
+            };
         }
 
-        // 處理並顯示最近車站的共用函式
-        function showNearestStation(lat, lon) {
+        // 取得 TDX Access Token
+        async function getTdxToken() {
+            const tokenUrl = 'https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token';
+            const params = new URLSearchParams();
+            params.append('grant_type', 'client_credentials');
+            params.append('client_id', TDX_CLIENT_ID);
+            params.append('client_secret', TDX_CLIENT_SECRET);
+
+            try {
+                const response = await fetch(tokenUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params
+                });
+                const data = await response.json();
+                return data.access_token;
+            } catch (error) {
+                console.error('獲取 TDX Token 失敗:', error);
+                return null;
+            }
+        }
+
+        // 抓取指定車站今日時刻表，並找出最晚班次
+        async function fetchLastTrains(stationId) {
+            // 如果沒有填寫金鑰，直接回傳模擬資料展示排版效果
+            if (!TDX_CLIENT_ID || !TDX_CLIENT_SECRET) {
+                console.log("未提供 TDX 金鑰，使用模擬時刻表資料...");
+                return getMockTrainData();
+            }
+
+            const token = await getTdxToken();
+            if (!token) return getMockTrainData(); // Token 失敗也用假資料容錯
+
+            // 取得今天的日期字串 YYYY-MM-DD
+            const today = new Date();
+            const dateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            
+            // 呼叫 TDX 台鐵車站別時刻表 API
+            const apiUrl = `https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTimetable/Station/${stationId}/${dateString}?$format=JSON`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+
+                // 檢查是否為陣列，避免 API 回傳錯誤訊息物件時導致 forEach 崩潰
+                if (!Array.isArray(data)) {
+                    console.error("TDX API 回傳格式錯誤或無資料:", data);
+                    return getMockTrainData();
+                }
+
+                let southLast = null;
+                let northLast = null;
+
+                // 遍歷所有班次
+                data.forEach(item => {
+                    const direction = item.Direction; // 0:順行(南下), 1:逆行(北上)
+                    const departureTime = item.DepartureTime;
+                    // 使用可選串連 (?.) 確保物件屬性不存在時不會噴錯，並加入備用字串
+                    const destination = item.DestinationStationName?.En || item.DestinationStationName?.Zh_tw || 'UNKNOWN';
+
+                    if (direction === 0) {
+                        // 如果這班車比目前記錄的還晚，就更新
+                        if (!southLast || departureTime > southLast.time) {
+                            southLast = { time: departureTime, destination: destination };
+                        }
+                    } else if (direction === 1) {
+                        if (!northLast || departureTime > northLast.time) {
+                            northLast = { time: departureTime, destination: destination };
+                        }
+                    }
+                });
+
+                return {
+                    south: southLast || { time: '--:--', destination: 'NONE' },
+                    north: northLast || { time: '--:--', destination: 'NONE' }
+                };
+
+            } catch (error) {
+                console.error('獲取時刻表失敗:', error);
+                return getMockTrainData();
+            }
+        }
+
+        // ==========================================
+        // 4. 主流程：定位 -> 算距離 -> 抓班表 -> 顯示
+        // ==========================================
+        async function processAndShow(lat, lon) {
             let nearestStation = null;
             let minDistance = Infinity;
 
-            // 比對所有車站，找出距離最短的那一個
+            // 1. 找出最近車站
             stations.forEach(station => {
                 const dist = getDistanceFromLatLonInKm(lat, lon, station.lat, station.lon);
                 if (dist < minDistance) {
@@ -424,50 +553,64 @@
                 }
             });
 
-            // 找到後更新畫面
             if (nearestStation) {
-                // 隱藏原本的按鈕
+                // 更新按鈕狀態提示使用者正在抓時刻表
+                btn.textContent = 'FETCHING TRAINS...';
+
+                // 2. 抓取最晚班次資料 (這裡加入 await 等待網路請求)
+                const lastTrains = await fetchLastTrains(nearestStation.id);
+
+                // 3. 更新畫面資料
                 btn.style.opacity = '0';
                 
                 setTimeout(() => {
                     btn.style.display = 'none';
                     
-                    // 填入最近的站名 (強制轉為全大寫避免字型出錯)
+                    // 填入站名
                     stationNameEl.textContent = nearestStation.name.toUpperCase();
                     
-                    // 顯示結果區塊
+                    // 填入班次資訊 (轉大寫以符合 Bebas Neue 字型風格)
+                    southTimeEl.textContent = lastTrains.south.time;
+                    southDestEl.textContent = lastTrains.south.destination.toUpperCase();
+                    northTimeEl.textContent = lastTrains.north.time;
+                    northDestEl.textContent = lastTrains.north.destination.toUpperCase();
+
+                    // 顯示站名跑馬燈
                     resultContainer.style.display = 'flex';
-                    // 給一點點時間讓瀏覽器渲染 display: flex 後，再觸發 opacity 動畫
                     setTimeout(() => {
                         resultContainer.style.opacity = '1';
+                        
+                        // 稍微延遲一下，再秀出下方班次卡片，營造進場層次感
+                        setTimeout(() => {
+                            trainInfoEl.style.display = 'flex';
+                            setTimeout(() => {
+                                trainInfoEl.style.opacity = '1';
+                            }, 50);
+                        }, 800);
+
                     }, 50);
-                }, 500); // 配合 CSS 轉場時間
+                }, 500); 
             }
         }
 
-        // 點擊按鈕事件
+        // 按鈕點擊事件 (請求定位)
         btn.addEventListener('click', () => {
-            // 變更按鈕文字，提示正在定位
             btn.textContent = 'LOCATING...';
             btn.style.transform = 'scale(0.95)';
 
-            // 檢查瀏覽器是否支援 Geolocation
             if (navigator.geolocation) {
-                // 要求取得目前位置
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
-                        showNearestStation(position.coords.latitude, position.coords.longitude);
+                        processAndShow(position.coords.latitude, position.coords.longitude);
                     },
                     (error) => {
-                        // 若使用者拒絕定位、環境受限或發生超時，改用備用座標
                         console.warn('定位受限或失敗，改用預設座標 (新北市蘆洲區):', error.message || error);
                         // 預設 fallback 座標：蘆洲區 (Lat: 25.0822, Lon: 121.4655)
-                        showNearestStation(25.0822, 121.4655);
+                        processAndShow(25.0822, 121.4655);
                     },
                     { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
                 );
             } else {
-                // 瀏覽器不支援
                 btn.textContent = 'NOT SUPPORTED';
             }
         });
