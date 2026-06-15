@@ -34,12 +34,12 @@
             color: #313131; /* 修改：文字顏色為 #313131 */
             font-family: 'Bebas Neue', sans-serif; /* 字型 Bebas Neue */
             font-size: clamp(20px, 5vw, 24px); 
-            /* 修改 1：增加文字間距 (letter-spacing) 到原本的兩倍左右 */
-            letter-spacing: 4px; 
+            /* 修改 1：字距設定為 2px，與站名上方小字 (subtitle) 保持一致 */
+            letter-spacing: 2px; 
             border: none;
             border-radius: 999px; /* 圓角按鈕 */
-            /* 修改 1：將 padding 縮小，讓按鈕整體變小一點 */
-            padding: 1.5% 6%; 
+            /* 修改 2：廢棄 % 單位，改用 em 來設定 padding，讓按鈕在任何裝置上比例都完美不擠壓 */
+            padding: 1em 3em; 
             cursor: pointer;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             transition: transform 0.2s ease, opacity 0.5s ease;
@@ -83,12 +83,16 @@
         #station-name {
             color: #6cdd96; /* 顏色 #6cdd96 */
             font-family: 'Bitcount Single', 'Silkscreen', 'DotGothic16', monospace; 
-            font-size: clamp(60px, 15vw, 310px); 
+            /* 修改 3：字體大小加大兩倍，最大支援到 620px */
+            font-size: clamp(120px, 30vw, 620px); 
             font-weight: 400;
             margin: 0;
             text-transform: uppercase;
             /* 修改 2：縮小行高 (line-height) 讓文字更緊湊 */
             line-height: 0.8; 
+            /* 加上斷字保護，避免極端放大的字體在手機上超出螢幕截斷 */
+            word-break: break-word;
+            padding: 0 20px;
         }
 
     </style>
