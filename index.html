@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>theLastTrain | v1.7</title>
+    <title>Nearest Station Finder</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -94,7 +94,7 @@
         }
 
         #train-info {
-            display: none; /* 初始隱藏，抓完資料後顯示 */
+            display: none; 
             flex-direction: column;
             gap: 15px;
             margin-top: 30px;
@@ -158,13 +158,9 @@
     </div>
 
     <script>
-        // ==========================================
-        // 1. TDX API 設定區 (若留空則會自動使用模擬資料)
-        // ==========================================
-        const TDX_CLIENT_ID = 'ethanchen1984-04c214cd-35f4-4327';     // 請填入你的 Client ID
-        const TDX_CLIENT_SECRET = '08274605-4c57-402b-93cc-9caabc1736cf'; // 請填入你的 Client Secret
+        const TDX_CLIENT_ID = 'ethanchen1984-04c214cd-35f4-4327';     
+        const TDX_CLIENT_SECRET = '08274605-4c57-402b-93cc-9caabc1736cf'; 
 
-        // 內建你提供的 240+ 車站清單
         const stations = [
           { "id": "0900", "name": "Keelung", "lat": 25.13191, "lon": 121.73837 },
           { "id": "0910", "name": "Sankeng", "lat": 25.12305, "lon": 121.74202 },
@@ -413,7 +409,6 @@
           { "id": "7390", "name": "Nuannuan", "lat": 25.10231, "lon": 121.74031 }
         ];
 
-        // UI 元素
         const btn = document.getElementById('btn-miss-you');
         const resultContainer = document.getElementById('result-container');
         const stationNameEl = document.getElementById('station-name');
@@ -424,9 +419,6 @@
         const northTimeEl = document.getElementById('north-time');
         const northDestEl = document.getElementById('north-dest');
 
-        // ==========================================
-        // 2. 距離計算邏輯 (Haversine 公式)
-        // ==========================================
         function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
             const R = 6371; 
             const dLat = deg2rad(lat2 - lat1);
@@ -440,11 +432,6 @@
 
         function deg2rad(deg) { return deg * (Math.PI / 180); }
 
-        // ==========================================
-        // 3. TDX API 串接與假資料產生器
-        // ==========================================
-
-        // 產生一組給展示用的假時刻表資料 (如果沒填金鑰就會用到)
         function getMockTrainData() {
             return {
                 south: { time: '23:45', destination: 'CHAOZHOU' },
@@ -452,7 +439,6 @@
             };
         }
 
-        // 取得 TDX Access Token
         async function getTdxToken() {
             const tokenUrl = 'https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token';
             const params = new URLSearchParams();
@@ -480,9 +466,7 @@
             }
         }
 
-        // 抓取指定車站今日時刻表，並找出最晚班次
         async function fetchLastTrains(stationId) {
-            // 如果沒有填寫金鑰，直接回傳模擬資料展示排版效果
             if (!TDX_CLIENT_ID || !TDX_CLIENT_SECRET) {
                 console.log("⚠️ 未提供 TDX 金鑰，將使用模擬時刻表資料展示畫面。");
                 return getMockTrainData();
@@ -494,11 +478,9 @@
                 return getMockTrainData(); 
             }
 
-            // 取得今天的日期字串 YYYY-MM-DD
             const today = new Date();
             const dateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
             
-            // 呼叫 TDX 台鐵車站別時刻表 API
             const apiUrl = `https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTimetable/Station/${stationId}/${dateString}?$format=JSON`;
             
             console.log(`正在請求時刻表資料...\n目標車站ID: ${stationId}\n日期: ${dateString}\nAPI URL: ${apiUrl}`);
@@ -509,7 +491,6 @@
                 });
                 const data = await response.json();
 
-                // 檢查是否為陣列，避免 API 回傳錯誤訊息物件時導致 forEach 崩潰
                 if (!Array.isArray(data)) {
                     console.error("❌ TDX API 回傳格式錯誤或無資料。API原始回傳內容:", data);
                     return getMockTrainData();
@@ -517,7 +498,6 @@
 
                 console.log(`✅ 成功抓取時刻表！共取得 ${data.length} 筆班次資料。`);
                 
-                // 顯示前 3 筆最原始的台鐵資料以供除錯
                 if (data.length > 0) {
                     console.log("=== 🔍 TDX API 原始回傳資料範例 (前 3 筆) ===");
                     console.log(data.slice(0, 3));
@@ -527,19 +507,16 @@
                 let southLast = null;
                 let northLast = null;
 
-                // 遍歷所有班次
                 data.forEach(item => {
-                    const direction = item.Direction; // 0:順行(南下), 1:逆行(北上)
+                    const direction = item.Direction; // 0:順行(北上), 1:逆行(南下)
                     const departureTime = item.DepartureTime;
-                    // 使用可選串連 (?.) 確保物件屬性不存在時不會噴錯，並加入備用字串
-                    const destination = item.DestinationStationName?.En || item.DestinationStationName?.Zh_tw || 'UNKNOWN';
+                    const destination = item.EndingStationName?.En || item.EndingStationName?.Zh_tw || 'UNKNOWN';
 
-                    if (direction === 0) {
-                        // 如果這班車比目前記錄的還晚，就更新
+                    if (direction === 1) { // 修正：1 為逆行 (西部幹線為南下)
                         if (!southLast || departureTime > southLast.time) {
                             southLast = { time: departureTime, destination: destination, trainNo: item.TrainNo };
                         }
-                    } else if (direction === 1) {
+                    } else if (direction === 0) { // 修正：0 為順行 (西部幹線為北上)
                         if (!northLast || departureTime > northLast.time) {
                             northLast = { time: departureTime, destination: destination, trainNo: item.TrainNo };
                         }
@@ -551,18 +528,17 @@
                     north: northLast || { time: '--:--', destination: 'NONE' }
                 };
 
-                // 在 Console 詳細印出最終過濾出來的末班車資訊
                 console.log("=== 今日末班車資訊結算 ===");
                 if(southLast) {
-                    console.log(`🚅 [順行/南下] 最晚班次: ${southLast.trainNo} 次, 發車時間: ${southLast.time}, 開往: ${southLast.destination}`);
+                    console.log(`🚅 [逆行/南下] 最晚班次: ${southLast.trainNo} 次, 發車時間: ${southLast.time}, 開往: ${southLast.destination}`);
                 } else {
-                    console.log(`🚅 [順行/南下] 找不到任何班次資料。`);
+                    console.log(`🚅 [逆行/南下] 找不到任何班次資料。`);
                 }
                 
                 if(northLast) {
-                    console.log(`🚅 [逆行/北上] 最晚班次: ${northLast.trainNo} 次, 發車時間: ${northLast.time}, 開往: ${northLast.destination}`);
+                    console.log(`🚅 [順行/北上] 最晚班次: ${northLast.trainNo} 次, 發車時間: ${northLast.time}, 開往: ${northLast.destination}`);
                 } else {
-                     console.log(`🚅 [逆行/北上] 找不到任何班次資料。`);
+                     console.log(`🚅 [順行/北上] 找不到任何班次資料。`);
                 }
                 console.log("=========================");
 
@@ -574,14 +550,10 @@
             }
         }
 
-        // ==========================================
-        // 4. 主流程：定位 -> 算距離 -> 抓班表 -> 顯示
-        // ==========================================
         async function processAndShow(lat, lon) {
             let nearestStation = null;
             let minDistance = Infinity;
 
-            // 1. 找出最近車站
             stations.forEach(station => {
                 const dist = getDistanceFromLatLonInKm(lat, lon, station.lat, station.lon);
                 if (dist < minDistance) {
@@ -591,33 +563,26 @@
             });
 
             if (nearestStation) {
-                // 更新按鈕狀態提示使用者正在抓時刻表
                 btn.textContent = 'FETCHING TRAINS...';
 
-                // 2. 抓取最晚班次資料 (這裡加入 await 等待網路請求)
                 const lastTrains = await fetchLastTrains(nearestStation.id);
 
-                // 3. 更新畫面資料
                 btn.style.opacity = '0';
                 
                 setTimeout(() => {
                     btn.style.display = 'none';
                     
-                    // 填入站名
                     stationNameEl.textContent = nearestStation.name.toUpperCase();
                     
-                    // 填入班次資訊 (轉大寫以符合 Bebas Neue 字型風格)
                     southTimeEl.textContent = lastTrains.south.time;
                     southDestEl.textContent = lastTrains.south.destination.toUpperCase();
                     northTimeEl.textContent = lastTrains.north.time;
                     northDestEl.textContent = lastTrains.north.destination.toUpperCase();
 
-                    // 顯示站名跑馬燈
                     resultContainer.style.display = 'flex';
                     setTimeout(() => {
                         resultContainer.style.opacity = '1';
                         
-                        // 稍微延遲一下，再秀出下方班次卡片，營造進場層次感
                         setTimeout(() => {
                             trainInfoEl.style.display = 'flex';
                             setTimeout(() => {
@@ -630,7 +595,6 @@
             }
         }
 
-        // 按鈕點擊事件 (請求定位)
         btn.addEventListener('click', () => {
             btn.textContent = 'LOCATING...';
             btn.style.transform = 'scale(0.95)';
@@ -642,7 +606,6 @@
                     },
                     (error) => {
                         console.warn('定位受限或失敗，改用預設座標 (新北市蘆洲區):', error.message || error);
-                        // 預設 fallback 座標：蘆洲區 (Lat: 25.0822, Lon: 121.4655)
                         processAndShow(25.0822, 121.4655);
                     },
                     { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
