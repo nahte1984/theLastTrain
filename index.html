@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- 加入 theme-color 讓手機瀏覽器狀態列也能吃到顏色 -->
+    <meta name="theme-color" id="theme-color" content="#800000">
+    <title>ˊ˗簽ˏˋ名₊·—̳͟͞͞簿₊· v1.9</title>
+    <!-- 引入指定的字型 Solway Medium 500 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Solway:wght@500&display=swap" rel="stylesheet">
+    
+    <style>
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        
+        html, body { 
+            background-color: #800000; 
+            overflow: hidden; 
+            font-family: sans-serif;
+            
+        }
+
+        /* ----- 封面 (載入時的畫面) ----- */
+        #cover {
+            position: fixed;
+            inset: 0;
+            background-color: #800000;
+            z-index: 100;
+            display: flex;
+            flex-direction: column; /* 改為垂直排列以容納載入文字 */
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease;
+        }
+        #title-btn {
+            max-width: 25vw;
+            max-height: 25vh;
+            cursor: pointer;
+            pointer-events: none; /* 初始禁止點擊，等資料載入完才開放 */
+            transition: opacity 0.5s ease;
+        }
+
+        /* 載入中的呼吸動畫 */
+        .loading-pulse {
+            animation: title-pulse 1.5s infinite ease-in-out;
+        }
+
+        @keyframes title-pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 0.75; }
+        }
+
+        /* ----- 互動頁 (簽名簿) ----- */
+        #app {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            display: none; /* 預設隱藏，點擊封面後顯示 */
+            opacity: 0; /* 預設全透明，供淡入動畫使用 */
+            transition: opacity 0.5s ease; /* 與封面淡出同速率的淡入效果 */
+        }
+
+        /* 水平滑動區域 */
+        .scroll-container {
+            width: 100vw;
+            height: 100dvh; /* 使用 dvh 避免手機瀏覽器網址列干擾 */
+            overflow-x: auto;
+            overflow-y: hidden;
+            scroll-behavior: smooth; /* 平滑捲動 */
+            -webkit-overflow-scrolling: touch; /* 確保 iOS Safari 順暢滑動 */
+            /* 隱藏滾動條提升美觀 (依瀏覽器支援) */
+            scrollbar-width: none; 
+        }
+        .scroll-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* 簽名軌道 (存放所有格子) */
+        .track {
+            display: inline-flex;
+            align-items: center;
+            height: 100dvh;
+            /* 利用 padding 將第一個格子推到正中央： 50vw - 一半的格子寬度(31.875dvh / 2) */
+            padding-left: calc(50vw - 15.9375dvh);
+            padding-right: 50vw; /* 右側預留空白，讓最後一個也能滑到中間 */
+            
+            /* 將背景圖套用在軌道上，使其跟隨滑動並無縫複製 */
+            background-image: url('bg.png');
+            background-repeat: repeat;
+            background-position: left center;
+            background-size: auto 100dvh; /* 直式螢幕預設：高度撐滿，寬度等比縮放並無縫重複 */
+        }
+
+        /* 橫式螢幕：寬度撐滿，高度等比縮放並無縫重複 */
+        @media (min-aspect-ratio: 1/1) {
+            .track {
+                background-size: 100vw auto;
+            }
+        }
+
+        /* 單一簽名格子的通用樣式 */
+        .cell {
+            width: 31.875dvh;  /* 比例 3:8，高度 85dvh，因此寬度為 31.875dvh */
+            height: 85dvh;
+            border: 7.5px solid #b60000;
+            margin-right: -7.5px; /* 讓框線重疊，變成只有一條線 */
+            flex-shrink: 0;
+            background-color: transparent; /* 背景透明，透出底圖 */
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* 距離主框線 5px 的 1px 內部裝飾細線 */
+        .cell::before {
+            content: "";
+            position: absolute;
+            top: 5px;
+            bottom: 5px;
+            left: 5px;
+            right: 5px;
+            border: 1px solid #b60000;
+            pointer-events: none; /* 確保不會阻擋畫布的繪圖事件 */
+            z-index: 10; /* 確保線條疊在內容之上 */
+        }
+
+        /* 針對第一個空白的簽名格，底部框線要避開 40px 高的按鈕 (5px + 40px = 45px) */
+        #active-cell::before {
+            bottom: 45px;
+        }
+
+        /* 畫布區域 */
+        .canvas-container {
+            flex-grow: 1; /* 佔滿剩餘高度 */
+            width: 100%;
+            position: relative;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            touch-action: none;
+            cursor: crosshair;
+        }
+
+        /* 底部控制列 (包含按鈕) */
+        .controls {
+            height: 40px; 
+            width: 100%;
+            display: flex;
+            background-color: #b60000; 
+        }
+        
+        .btn {
+            flex: 1; /* 寬度佔一半 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding-top: 3px; /* 將文字位置往下微調 3px */
+            color: white;
+            font-family: 'Solway', serif;
+            font-weight: 500;
+            font-size: 2.25dvh; /* 畫面的相對大小，約為原來的75% */
+            cursor: pointer;
+            user-select: none;
+            transition: opacity 0.2s;
+        }
+
+        /* 過去的簽名格內的圖片 */
+        .past-cell img {
+            width: 100%;
+            height: calc(100% - 40px); /* 保持與畫布繪圖區域比例相同 */
+            object-fit: contain;
+            object-position: top;
+            pointer-events: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 1. 封面區 -->
+    <div id="cover">
+        <img src="title.png" alt="Sign me in" id="title-btn" class="loading-pulse">
+    </div>
+
+    <!-- 2. 簽名互動區 -->
+    <div id="app">
+        <div class="scroll-container" id="scroll-container">
+            <div class="track" id="track">
+                
+                <!-- 空白的簽名格 (永遠在最左側，索引 0) -->
+                <div class="cell" id="active-cell">
+                    <div class="canvas-container" id="canvas-container">
+                        <canvas id="drawing-board"></canvas>
+                    </div>
+                    <div class="controls">
+                        <div class="btn" id="btn-clear">clear</div>
+                        <div class="btn" id="btn-send">send</div>
+                    </div>
+                </div>
+
+                <!-- 這裡將由 Firebase 動態載入舊的簽名 -->
+                
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入 Firebase 模組 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // Firebase 專案設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyABbvAoeAOyHeS9K4xGVzJdLC4re0PPonc",
+            authDomain: "thesign-b3e62.firebaseapp.com",
+            projectId: "thesign-b3e62",
+            storageBucket: "thesign-b3e62.firebasestorage.app",
+            messagingSenderId: "978281223711",
+            appId: "1:978281223711:web:afb6ca554b6cabd44a272a",
+            measurementId: "G-RR1RES97LY"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- DOM 元素選擇 ---
+        const cover = document.getElementById('cover');
+        const titleBtn = document.getElementById('title-btn');
+        const appView = document.getElementById('app');
+        const scrollContainer = document.getElementById('scroll-container');
+        const track = document.getElementById('track');
+        const canvas = document.getElementById('drawing-board');
+        const canvasContainer = document.getElementById('canvas-container');
+        const btnClear = document.getElementById('btn-clear');
+        const btnSend = document.getElementById('btn-send');
+
+        // --- 畫布變數 ---
+        let ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let hasDrawn = false; // 判斷是否空白
+        let isDataLoaded = false; // 判斷資料庫是否完成初次載入
+        let isBgLoaded = false; // 新增：判斷背景圖是否載入完成
+        let isAppReady = false; // 新增：判斷整體是否皆載入完成
+
+        // --- 預載背景圖片 ---
+        const preloadBg = new Image();
+        preloadBg.onload = () => {
+            isBgLoaded = true;
+            checkAppReady(); // 檢查雙方是否都準備好
+        };
+        preloadBg.onerror = () => {
+            // 移除 console.error 以避免在找不到圖片時跳出錯誤提示干擾
+            isBgLoaded = true; // 防呆機制：若圖片失效仍強制放行，避免永遠卡在載入中
+            checkAppReady();
+        };
+        // 確保在綁定 onload 與 onerror 事件之後，才賦予 src 開始載入 (最佳實踐)
+        preloadBg.src = 'bg.png';
+
+        // --- 檢查是否允許進入互動頁 ---
+        function checkAppReady() {
+            if (isDataLoaded && isBgLoaded && !isAppReady) {
+                isAppReady = true;
+                titleBtn.classList.remove('loading-pulse');
+                titleBtn.style.opacity = '1';
+                titleBtn.style.pointerEvents = 'auto';
+            }
+        }
+
+        // --- 點擊標題進入 ---
+        titleBtn.addEventListener('click', () => {
+            // 讓原本的封面層(cover)淡出
+            cover.style.opacity = '0';
+            
+            // 讓互動頁(app)設定為顯示，但保持透明
+            appView.style.display = 'block';
+            initCanvas(); // 顯示後立刻初始化畫布尺寸
+            
+            // 延遲一點點時間觸發互動頁的淡入動畫，使其與封面淡出同步
+            setTimeout(() => {
+                appView.style.opacity = '1';
+            }, 10);
+            
+            // 動畫結束後徹底隱藏封面
+            setTimeout(() => {
+                cover.style.display = 'none';
+            }, 500);
+        });
+
+        // --- 初始化畫布尺寸與筆刷 ---
+        function initCanvas() {
+            // 讓畫布像素對齊實際尺寸，避免模糊拉伸
+            const rect = canvasContainer.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            // 細緻圓形畫筆設定 (手機版尺寸為原本75%)
+            const isMobile = window.innerWidth <= 768;
+            ctx.lineWidth = isMobile ? 11 : 16; 
+            ctx.lineCap = 'round';   // 圓形端點
+            ctx.lineJoin = 'round';  // 轉折處圓滑
+            ctx.strokeStyle = '#313131';
+            ctx.imageSmoothingEnabled = false; // 關閉像素平滑補償
+        }
+
+        // 當視窗縮放時重新調整畫布
+        window.addEventListener('resize', () => {
+            if (appView.style.display === 'block') {
+                // 保存原本的圖
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = canvas.width;
+                tempCanvas.height = canvas.height;
+                tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
+                
+                initCanvas();
+                
+                // 畫回去
+                ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+            }
+        });
+
+        // --- 畫畫邏輯 ---
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            let clientY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+            // 移除四捨五入以獲得小數點級別的精確座標，提升取樣密度
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function startDrawing(e) {
+            e.preventDefault();
+            isDrawing = true;
+            const pos = getMousePos(e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            // 點擊即畫下一點
+            ctx.lineTo(pos.x + 1, pos.y + 1);
+            ctx.stroke();
+            hasDrawn = true;
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            e.preventDefault();
+            const pos = getMousePos(e);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+        }
+
+        function stopDrawing() {
+            if (isDrawing) {
+                isDrawing = false;
+                ctx.beginPath(); // 重置路徑
+            }
+        }
+
+        // 滑鼠事件
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        // 觸控事件
+        canvas.addEventListener('touchstart', startDrawing, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('touchend', stopDrawing);
+        canvas.addEventListener('touchcancel', stopDrawing);
+
+        // --- 按鈕邏輯 ---
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            hasDrawn = false;
+        }
+
+        btnClear.addEventListener('click', clearCanvas);
+
+        btnSend.addEventListener('click', async () => {
+            if (!hasDrawn) return; // 畫面空白無法送出
+
+            // 按鈕加上視覺回饋
+            btnSend.textContent = "sending...";
+            btnSend.style.opacity = '0.7';
+            btnSend.style.pointerEvents = 'none';
+
+            // 將畫布轉為 Base64 圖片資料
+            const dataUrl = canvas.toDataURL("image/png");
+
+            try {
+                // 儲存到 Firestore
+                await addDoc(collection(db, "signatures"), {
+                    image: dataUrl,
+                    time: serverTimestamp()
+                });
+
+                // 成功後清空畫布，將滾動條移回最左側(置中新格子)
+                clearCanvas();
+                scrollContainer.scrollTo({ left: 0, behavior: 'smooth' });
+
+            } catch (error) {
+                console.error("writing error:", error);
+                alert("check the internet!");
+            } finally {
+                // 恢復按鈕狀態
+                btnSend.textContent = "send";
+                btnSend.style.opacity = '1';
+                btnSend.style.pointerEvents = 'auto';
+            }
+        });
+
+        // --- Firebase 監聽歷史簽名 (由新到舊排列) ---
+        const q = query(collection(db, "signatures"), orderBy("time", "desc"));
+        onSnapshot(q, (snapshot) => {
+            // 先清除畫面上舊的簽名格 (保留第一個主動繪圖格)
+            document.querySelectorAll('.past-cell').forEach(el => el.remove());
+
+            // 將資料庫抓來的每一筆都生成一個新的格子
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                if (data.image) {
+                    const newCell = document.createElement('div');
+                    newCell.className = 'cell past-cell';
+                    
+                    const img = document.createElement('img');
+                    img.src = data.image;
+                    
+                    newCell.appendChild(img);
+                    
+                    // 利用 Flexbox 由左至右排列特性，直接加入軌道後方
+                    track.appendChild(newCell);
+                }
+            });
+
+            // 當第一批資料載入完成時，改交由 checkAppReady 統一判斷
+            if (!isDataLoaded) {
+                isDataLoaded = true;
+                checkAppReady();
+            }
+        });
+
+    </script>
+</body>
+</html>
