@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>theLastTrain | v1.5</title>
+    <title>theLastTrain | v1.6</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -460,6 +460,7 @@
             params.append('client_id', TDX_CLIENT_ID);
             params.append('client_secret', TDX_CLIENT_SECRET);
 
+            console.log('正在向 TDX 請求 Access Token...');
             try {
                 const response = await fetch(tokenUrl, {
                     method: 'POST',
@@ -467,9 +468,14 @@
                     body: params
                 });
                 const data = await response.json();
+                if (data.access_token) {
+                    console.log('✅ 成功取得 TDX Access Token!');
+                } else {
+                    console.warn('⚠️ 無法取得 Token，請檢查金鑰是否正確。', data);
+                }
                 return data.access_token;
             } catch (error) {
-                console.error('獲取 TDX Token 失敗:', error);
+                console.error('❌ 獲取 TDX Token 發生網路錯誤:', error);
                 return null;
             }
         }
@@ -478,12 +484,15 @@
         async function fetchLastTrains(stationId) {
             // 如果沒有填寫金鑰，直接回傳模擬資料展示排版效果
             if (!TDX_CLIENT_ID || !TDX_CLIENT_SECRET) {
-                console.log("未提供 TDX 金鑰，使用模擬時刻表資料...");
+                console.log("⚠️ 未提供 TDX 金鑰，將使用模擬時刻表資料展示畫面。");
                 return getMockTrainData();
             }
 
             const token = await getTdxToken();
-            if (!token) return getMockTrainData(); // Token 失敗也用假資料容錯
+            if (!token) {
+                console.log("⚠️ Token 取得失敗，切換為模擬資料。");
+                return getMockTrainData(); 
+            }
 
             // 取得今天的日期字串 YYYY-MM-DD
             const today = new Date();
@@ -491,6 +500,8 @@
             
             // 呼叫 TDX 台鐵車站別時刻表 API
             const apiUrl = `https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTimetable/Station/${stationId}/${dateString}?$format=JSON`;
+            
+            console.log(`正在請求時刻表資料...\n目標車站ID: ${stationId}\n日期: ${dateString}\nAPI URL: ${apiUrl}`);
 
             try {
                 const response = await fetch(apiUrl, {
@@ -500,9 +511,11 @@
 
                 // 檢查是否為陣列，避免 API 回傳錯誤訊息物件時導致 forEach 崩潰
                 if (!Array.isArray(data)) {
-                    console.error("TDX API 回傳格式錯誤或無資料:", data);
+                    console.error("❌ TDX API 回傳格式錯誤或無資料。API原始回傳內容:", data);
                     return getMockTrainData();
                 }
+
+                console.log(`✅ 成功抓取時刻表！共取得 ${data.length} 筆班次資料。`);
 
                 let southLast = null;
                 let northLast = null;
@@ -517,22 +530,39 @@
                     if (direction === 0) {
                         // 如果這班車比目前記錄的還晚，就更新
                         if (!southLast || departureTime > southLast.time) {
-                            southLast = { time: departureTime, destination: destination };
+                            southLast = { time: departureTime, destination: destination, trainNo: item.TrainNo };
                         }
                     } else if (direction === 1) {
                         if (!northLast || departureTime > northLast.time) {
-                            northLast = { time: departureTime, destination: destination };
+                            northLast = { time: departureTime, destination: destination, trainNo: item.TrainNo };
                         }
                     }
                 });
 
-                return {
+                const result = {
                     south: southLast || { time: '--:--', destination: 'NONE' },
                     north: northLast || { time: '--:--', destination: 'NONE' }
                 };
 
+                // 在 Console 詳細印出最終過濾出來的末班車資訊
+                console.log("=== 今日末班車資訊結算 ===");
+                if(southLast) {
+                    console.log(`🚅 [順行/南下] 最晚班次: ${southLast.trainNo} 次, 發車時間: ${southLast.time}, 開往: ${southLast.destination}`);
+                } else {
+                    console.log(`🚅 [順行/南下] 找不到任何班次資料。`);
+                }
+                
+                if(northLast) {
+                    console.log(`🚅 [逆行/北上] 最晚班次: ${northLast.trainNo} 次, 發車時間: ${northLast.time}, 開往: ${northLast.destination}`);
+                } else {
+                     console.log(`🚅 [逆行/北上] 找不到任何班次資料。`);
+                }
+                console.log("=========================");
+
+                return result;
+
             } catch (error) {
-                console.error('獲取時刻表失敗:', error);
+                console.error('❌ 獲取時刻表發生網路錯誤:', error);
                 return getMockTrainData();
             }
         }
