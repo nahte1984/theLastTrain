@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nearest Station Finder</title>
+    <title>theLastTrain | v1.3</title>
     
     <!-- 引入 Google Fonts: Bebas Neue 與 Bitcount Single (或相近像素字體作為備用) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -64,6 +64,9 @@
             opacity: 0;
             transition: opacity 1s ease-in-out;
             text-align: center;
+            /* 讓跑馬燈不要超出螢幕寬度，並隱藏超出的部分 */
+            width: 100vw;
+            overflow: hidden; 
         }
 
         /* 站名上方的小字 */
@@ -79,6 +82,23 @@
             z-index: 10;
         }
 
+        /* 跑馬燈外層容器，確保佔滿寬度且隱藏超出的字 */
+        .marquee-wrapper {
+            width: 100%;
+            overflow: hidden;
+            white-space: nowrap; /* 強制不換行 */
+        }
+
+        /* 跑馬燈動畫設定 */
+        @keyframes scroll-left {
+            0% {
+                transform: translateX(100vw); /* 從畫面最右邊開始 */
+            }
+            100% {
+                transform: translateX(-100%); /* 走到完全超出畫面左邊 */
+            }
+        }
+
         /* 火車站站名英文 */
         #station-name {
             color: #6cdd96; /* 顏色 #6cdd96 */
@@ -90,9 +110,15 @@
             text-transform: uppercase;
             /* 修改 2：縮小行高 (line-height) 讓文字更緊湊 */
             line-height: 0.8; 
-            /* 加上斷字保護，避免極端放大的字體在手機上超出螢幕截斷 */
-            word-break: break-word;
-            padding: 0 20px;
+            
+            /* 跑馬燈專屬設定 */
+            display: inline-block; /* 必須是 inline-block 才能正確滾動 */
+            white-space: nowrap; /* 絕對不換行 */
+            padding-right: 50px; /* 給字尾留一點空間 */
+            
+            /* 動畫屬性：名稱 時間 線性勻速 無限循環 */
+            /* 這裡設定 15 秒，你可以調整時間來改變跑馬燈速度 */
+            animation: scroll-left 15s linear infinite; 
         }
 
     </style>
@@ -105,7 +131,10 @@
     <!-- 偵測完成後顯示的結果區塊 -->
     <div id="result-container">
         <div id="subtitle">THE NEAREST STATION</div>
-        <h1 id="station-name">Loading...</h1>
+        <!-- 加入跑馬燈外層容器 -->
+        <div class="marquee-wrapper">
+            <h1 id="station-name">Loading...</h1>
+        </div>
     </div>
 
     <script>
