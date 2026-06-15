@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>theLastTrain | v1.6</title>
+    <title>theLastTrain | v1.7</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -516,6 +516,13 @@
                 }
 
                 console.log(`✅ 成功抓取時刻表！共取得 ${data.length} 筆班次資料。`);
+                
+                // 顯示前 3 筆最原始的台鐵資料以供除錯
+                if (data.length > 0) {
+                    console.log("=== 🔍 TDX API 原始回傳資料範例 (前 3 筆) ===");
+                    console.log(data.slice(0, 3));
+                    console.log("==============================================");
+                }
 
                 let southLast = null;
                 let northLast = null;
