@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>the Last Train | v3.1</title>
+  <title>the Last Train | v3.2</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;400;600;700;800&family=Noto+Sans+TC:wght@300;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@700&family=Manrope:wght@200;400;600;700;800&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -44,35 +44,20 @@
     .splash.hide { opacity: 0; pointer-events: none; }
 
     .splash-zh {
-      font-family: 'Noto Sans TC', sans-serif;
-      font-weight: 300;
-      font-size: 15px;
-      line-height: 1.9;
-      color: #7d7d7d;
-      letter-spacing: 1px;
-    }
-    .splash-en {
-      margin-top: 14px;
-      font-family: 'Manrope', sans-serif;
+      font-family: 'BIZ UDGothic', sans-serif;
       font-weight: 700;
       font-size: 16px;
-      line-height: 1.55;
-      color: #e8e8e8;
+      line-height: 25px;
+      letter-spacing: 0.05em;
+      color: #a7a7a7;
     }
-    .splash-hint {
-      position: absolute;
-      bottom: 48px;
-      left: 0;
-      width: 100%;
-      text-align: center;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      color: #5a5a5a;
-      text-transform: uppercase;
-      animation: pulse 2.2s ease-in-out infinite;
+    .splash-en {
+      margin-top: 8px;
+      font-family: 'Manrope', sans-serif;
+      font-weight: 800;
+      font-size: 16px;
+      color: #a7a7a7;
     }
-    @keyframes pulse { 0%,100%{opacity:.35} 50%{opacity:.85} }
 
     /* ============ Main UI ============ */
     .ui { opacity: 0; transition: opacity 0.6s ease; }
@@ -103,13 +88,16 @@
       font-weight: 800;
       flex-shrink: 0;
     }
-    /* The "A" rotates to point toward the station (device compass aware) */
+    /* The arrow rotates to point toward the station (device compass aware) */
     #compassA {
-      display: inline-block;
-      line-height: 1;
+      display: block;
+      width: 9px;
+      height: 13px;
+      color: #a7a7a7;
       transition: transform 0.15s linear;
       transform-origin: 50% 50%;
     }
+    #compassA path { fill: currentColor; }
 
     .header-label {
       font-size: 13px;
@@ -252,14 +240,17 @@
     <div class="splash" id="splash">
       <div class="splash-zh">想你的時候<br>搭上最後一班的列車</div>
       <div class="splash-en">Thinking of you,<br>I catch the last train.</div>
-      <div class="splash-hint">tap anywhere</div>
     </div>
 
     <!-- ============ Main UI ============ -->
     <div class="ui" id="ui">
       <!-- Header -->
       <div class="header">
-        <div class="header-icon"><span id="compassA">A</span></div>
+        <div class="header-icon">
+          <svg id="compassA" viewBox="0 0 56.96 81.54" xmlns="http://www.w3.org/2000/svg" aria-label="compass arrow">
+            <path d="M23.14,3.91L.19,76.46c-1.18,3.73,3.26,6.67,6.23,4.13l22.06-18.82,22.06,18.82c2.97,2.54,7.41-.4,6.23-4.13L33.83,3.91c-1.65-5.22-9.04-5.22-10.69,0Z"/>
+          </svg>
+        </div>
         <span class="header-label">the Last Train Departs in</span>
       </div>
 
@@ -307,7 +298,7 @@
      申請：https://tdx.transportdata.tw/ → 會員中心 → 金鑰管理
      ==================================================================== */
   const TDX_CLIENT_ID     = 'ethanchen1984-04c214cd-35f4-4327';      // ← 你的 Client ID
-  const TDX_CLIENT_SECRET = '95e6313d-b65c-4e02-aa94-e00245c292df';  // ← 你的 Client Secret
+  const TDX_CLIENT_SECRET = '08274605-4c57-402b-93cc-9caabc1736cf';  // ← 你的 Client Secret
   /* ==================================================================== */
 
   const TDX_AUTH_URL = 'https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token';
