@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>the Last Train | v3.1.7</title>
+  <title>the Last Train</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@700&family=Manrope:wght@200;400;600;700;800&display=swap" rel="stylesheet" />
@@ -86,7 +86,10 @@
       width: 375px;
       height: 494px;
       flex-shrink: 0;
+      transition: opacity 0.5s ease;
     }
+    /* Crossfade when switching stations (0.5s out + 0.5s in = 1s easing) */
+    .screen.swapping { opacity: 0; }
 
     /* Header label */
     .header {
@@ -287,7 +290,7 @@
       </div>
 
       <!-- Nearest Station -->
-      <div class="nearest-label">Nearest Station</div>
+      <div class="nearest-label" id="nearestLabel">Nearest Station</div>
       <div class="nearest-distance">
         <span class="dist-value" id="distValue">----m</span>
         <span class="dist-unit"> away from you</span>
@@ -343,6 +346,11 @@
   let stationBearing = null;     // bearing from user → station (deg, 0=N)
   let deviceHeading = null;      // compass heading of device (deg, 0=N)
   let departureTime = null;      // "HH:MM"
+  let stationOrder = [];         // stations sorted by distance (nearest first)
+  let stationIndex = 0;          // which station is shown (0 = nearest)
+  let tdxToken = null;           // cached TDX access token
+  let ready = false;             // initial station loaded → taps switch station
+  let switching = false;         // guard against overlapping switches
 
   function setStatus(msg, isErr) {
     statusEl.textContent = msg || '';
@@ -378,22 +386,15 @@
     $('compassA').style.transform = `rotate(${rel}deg)`;
   }
 
-  /* ---------- Nearest station ---------- */
-  async function findNearestStation() {
+  /* ---------- Stations sorted by distance ---------- */
+  async function loadStationsSorted() {
     const res = await fetch('stations.json', { cache: 'no-store' });
     if (!res.ok) throw new Error('無法讀取 stations.json');
     const stations = await res.json();
-
-    let best = null, bestD = Infinity;
-    for (const s of stations) {
-      const d = haversine(userLat, userLon, s.lat, s.lon);
-      if (d < bestD) { bestD = d; best = s; }
-    }
-    targetStation = best;
-    targetStation.distance = bestD;
-    stationBearing = bearing(userLat, userLon, best.lat, best.lon);
-    updateArrow();
-    return best;
+    stationOrder = stations
+      .map(s => ({ ...s, distance: haversine(userLat, userLon, s.lat, s.lon) }))
+      .sort((a, b) => a.distance - b.distance);
+    return stationOrder;
   }
 
   /* ---------- TDX auth + timetable ---------- */
@@ -582,7 +583,56 @@
     } catch (_) { /* compass optional */ }
   }
 
-  /* ---------- Main flow (triggered by tap) ---------- */
+  /* ---------- Apply a station (by index in the sorted list) ---------- */
+  function keysMissing() {
+    return (!TDX_CLIENT_ID || !TDX_CLIENT_SECRET ||
+            TDX_CLIENT_ID === 'YOUR_CLIENT_ID' || TDX_CLIENT_SECRET === 'YOUR_CLIENT_SECRET');
+  }
+
+  // Update everything for stationOrder[index]. isNext → label reads "Next Station".
+  async function applyStation(index, isNext) {
+    const st = stationOrder[index];
+    if (!st) return;
+    targetStation = st;
+    stationBearing = bearing(userLat, userLon, st.lat, st.lon);
+    updateArrow();
+
+    $('nearestLabel').textContent = isNext ? 'Next Station' : 'Nearest Station';
+    setStationName(st.name);
+    $('distValue').textContent = Math.round(st.distance) + 'm';
+
+    if (keysMissing()) {
+      setStatus('請在程式碼頂端填入 TDX 金鑰以取得班次', true);
+      return;
+    }
+
+    setStatus('查詢末班車…');
+    if (!tdxToken) tdxToken = await getTdxToken();
+    const last = await fetchLastTrain(tdxToken, st.id);
+
+    departureTime = last.dep.slice(0, 5);             // "HH:MM"
+    setDepartureDisplay(departureTime);
+    $('boundValue').textContent = last.boundFor || '—';
+    $('trainValue').textContent = last.trainNo || '—';
+    startCountdown();
+    setStatus('');
+  }
+
+  // Fade the content out, swap station, fade back in — 1s easing total.
+  async function transitionToStation(index, isNext) {
+    const screenEl = document.querySelector('.screen');
+    screenEl.classList.add('swapping');                // fade out (0.5s)
+    await new Promise(r => setTimeout(r, 500));
+    try {
+      await applyStation(index, isNext);
+    } catch (err) {
+      console.error(err);
+      setStatus(err.message || '發生錯誤', true);
+    }
+    screenEl.classList.remove('swapping');             // fade in (0.5s)
+  }
+
+  /* ---------- Main flow (triggered by tap on splash) ---------- */
   let started = false;
   async function start() {
     if (started) return;
@@ -602,34 +652,29 @@
       userLon = coords.longitude;
 
       setStatus('搜尋最近車站…');
-      const st = await findNearestStation();
-      setStationName(st.name);
-      $('distValue').textContent = Math.round(st.distance) + 'm';
-
-      if (!TDX_CLIENT_ID || !TDX_CLIENT_SECRET ||
-          TDX_CLIENT_ID === 'YOUR_CLIENT_ID' || TDX_CLIENT_SECRET === 'YOUR_CLIENT_SECRET') {
-        setStatus('請在程式碼頂端填入 TDX 金鑰以取得班次', true);
-        return;
-      }
-
-      setStatus('查詢末班車…');
-      const token = await getTdxToken();
-      const last = await fetchLastTrain(token, st.id);
-
-      departureTime = last.dep.slice(0, 5);           // "HH:MM"
-      setDepartureDisplay(departureTime);
-      $('boundValue').textContent = last.boundFor || '—';
-      $('trainValue').textContent = last.trainNo || '—';
-      startCountdown();
-      setStatus('');
+      await loadStationsSorted();
+      stationIndex = 0;
+      await applyStation(stationIndex, false);          // nearest station
+      ready = true;
     } catch (err) {
       console.error(err);
       setStatus(err.message || '發生錯誤', true);
     }
   }
 
+  // Tap anywhere on the UI → advance to the next-nearest station.
+  async function nextStation() {
+    if (!ready || switching || stationOrder.length < 2) return;
+    switching = true;
+    stationIndex = (stationIndex + 1) % stationOrder.length;
+    await transitionToStation(stationIndex, stationIndex !== 0);
+    switching = false;
+  }
+
   splashEl.addEventListener('click', start);
   splashEl.addEventListener('touchend', (e) => { e.preventDefault(); start(); }, { passive: false });
+  uiEl.addEventListener('click', nextStation);
+  uiEl.addEventListener('touchend', (e) => { e.preventDefault(); nextStation(); }, { passive: false });
 
   /* ---------- Station name marquee ---------- */
   (function () {
