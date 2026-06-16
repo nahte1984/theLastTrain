@@ -379,17 +379,21 @@
 
   /* ---------- TDX auth + timetable ---------- */
   async function getTdxToken() {
-    const body = new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: TDX_CLIENT_ID,
-      client_secret: TDX_CLIENT_SECRET
-    });
+    const params = new URLSearchParams();
+    params.append('grant_type', 'client_credentials');
+    params.append('client_id', TDX_CLIENT_ID);
+    params.append('client_secret', TDX_CLIENT_SECRET);
+
     const res = await fetch(TDX_AUTH_URL, {
       method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params
     });
-    if (!res.ok) throw new Error('TDX 授權失敗 (' + res.status + ')');
+    if (!res.ok) {
+      let detail = '';
+      try { detail = ' ' + (await res.text()).slice(0, 120); } catch (_) {}
+      throw new Error('TDX 授權失敗 (' + res.status + ')' + detail);
+    }
     const j = await res.json();
     if (!j.access_token) throw new Error('TDX 未回傳 access_token');
     return j.access_token;
@@ -583,7 +587,8 @@
       setStationName(st.name);
       $('distValue').textContent = Math.round(st.distance) + 'm';
 
-      if (TDX_CLIENT_ID === 'YOUR_CLIENT_ID' || TDX_CLIENT_SECRET === 'YOUR_CLIENT_SECRET') {
+      if (!TDX_CLIENT_ID || !TDX_CLIENT_SECRET ||
+          TDX_CLIENT_ID === 'YOUR_CLIENT_ID' || TDX_CLIENT_SECRET === 'YOUR_CLIENT_SECRET') {
         setStatus('請在程式碼頂端填入 TDX 金鑰以取得班次', true);
         return;
       }
