@@ -1,619 +1,610 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nearest Station Finder</title>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Silkscreen&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
-    
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Bitcount+Single&display=swap');
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>the Last Train</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;400;600;700;800&family=Noto+Sans+TC:wght@300;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #313131;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            font-family: sans-serif;
-            transition: background-color 0.5s ease;
-        }
+    body {
+      background: #313131;
+      font-family: 'Manrope', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      -webkit-tap-highlight-color: transparent;
+    }
 
-        #btn-miss-you {
-            background-color: #ffffff;
-            color: #313131;
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: clamp(20px, 5vw, 24px); 
-            letter-spacing: 2px; 
-            border: none;
-            border-radius: 999px;
-            padding: 1em 3em; 
-            cursor: pointer;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            transition: transform 0.2s ease, opacity 0.5s ease;
-            line-height: 1;
-            text-align: center;
-        }
+    .app {
+      position: relative;
+      width: 375px;
+      min-height: 100vh;
+      background: #313131;
+      overflow: hidden;
+    }
 
-        #btn-miss-you:hover {
-            transform: scale(1.05);
-        }
+    /* ============ Loading / splash screen ============ */
+    .splash {
+      position: absolute;
+      inset: 0;
+      z-index: 50;
+      background: #313131;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 32px;
+      cursor: pointer;
+      transition: opacity 0.6s ease;
+    }
+    .splash.hide { opacity: 0; pointer-events: none; }
 
-        #result-container {
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            opacity: 0;
-            transition: opacity 1s ease-in-out;
-            text-align: center;
-            width: 100vw;
-            overflow: hidden; 
-        }
+    .splash-zh {
+      font-family: 'Noto Sans TC', sans-serif;
+      font-weight: 300;
+      font-size: 15px;
+      line-height: 1.9;
+      color: #7d7d7d;
+      letter-spacing: 1px;
+    }
+    .splash-en {
+      margin-top: 14px;
+      font-family: 'Manrope', sans-serif;
+      font-weight: 700;
+      font-size: 16px;
+      line-height: 1.55;
+      color: #e8e8e8;
+    }
+    .splash-hint {
+      position: absolute;
+      bottom: 48px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #5a5a5a;
+      text-transform: uppercase;
+      animation: pulse 2.2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:.35} 50%{opacity:.85} }
 
-        #subtitle {
-            color: #8e8d8d;
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: clamp(16px, 4vw, 24px);
-            letter-spacing: 2px;
-            margin-bottom: 10px; 
-            position: relative;
-            z-index: 10;
-        }
+    /* ============ Main UI ============ */
+    .ui { opacity: 0; transition: opacity 0.6s ease; }
+    .ui.show { opacity: 1; }
 
-        .marquee-wrapper {
-            width: 100%;
-            overflow: hidden;
-            white-space: nowrap;
-        }
+    /* Header label */
+    .header {
+      position: absolute;
+      top: 157px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
 
-        @keyframes scroll-left {
-            0% { transform: translateX(100vw); }
-            100% { transform: translateX(-100%); }
-        }
+    .header-icon {
+      width: 23px;
+      height: 23px;
+      border: 2px solid #a7a7a7;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #a7a7a7;
+      font-size: 11px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    /* The "A" rotates to point toward the station (device compass aware) */
+    #compassA {
+      display: inline-block;
+      line-height: 1;
+      transition: transform 0.15s linear;
+      transform-origin: 50% 50%;
+    }
 
-        #station-name {
-            color: #6cdd96;
-            font-family: 'Bitcount Single', 'Silkscreen', 'DotGothic16', monospace; 
-            font-size: clamp(120px, 30vw, 620px); 
-            font-weight: 400;
-            margin: 0;
-            text-transform: uppercase;
-            line-height: 0.8; 
-            display: inline-block;
-            white-space: nowrap;
-            padding-right: 50px;
-            animation: scroll-left 15s linear infinite; 
-        }
+    .header-label {
+      font-size: 13px;
+      font-weight: 800;
+      color: #a7a7a7;
+      letter-spacing: 0;
+    }
 
-        #train-info {
-            display: none; 
-            flex-direction: column;
-            gap: 15px;
-            margin-top: 30px;
-            opacity: 0;
-            transition: opacity 1s ease-in-out;
-            z-index: 10;
-        }
+    /* Countdown timer */
+    .countdown {
+      position: absolute;
+      top: 190px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 86px;
+      font-weight: 200;
+      color: #28e08f;
+      line-height: 1;
+      white-space: nowrap;
+      display: flex;
+      align-items: baseline;
+      letter-spacing: -4.3px;
+    }
 
-        .train-card {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 40px;
-            backdrop-filter: blur(5px);
-        }
+    .countdown .seg {
+      display: inline-flex;
+      justify-content: center;
+      width: 80px;
+      padding-left: 4.3px;
+    }
 
-        .train-direction {
-            color: #8e8d8d;
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 20px;
-            letter-spacing: 2px;
-        }
+    .countdown .colon {
+      display: inline-flex;
+      justify-content: center;
+      width: 22px;
+    }
+    .countdown .colon.hidden { opacity: 0; }
 
-        .train-detail {
-            color: #ffffff;
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 28px;
-            letter-spacing: 2px;
-        }
+    /* Blink rule for colons outside the countdown (e.g. departure time) */
+    .info-value .colon.hidden { opacity: 0; }
 
-        .train-time {
-            color: #6cdd96;
-            margin-right: 10px;
-        }
-    </style>
+    /* Nearest station section */
+    .nearest-label {
+      position: absolute;
+      top: 293px;
+      left: 19px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #a7a7a7;
+      letter-spacing: 0.5px;
+    }
+
+    .nearest-distance {
+      position: absolute;
+      top: 288px;
+      right: 19px;
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 20px;
+      white-space: nowrap;
+    }
+
+    .nearest-distance .dist-value { color: #dfa11b; }
+    .nearest-distance .dist-unit  { color: #a7a7a7; }
+
+    .station-badge {
+      position: absolute;
+      top: 312px;
+      left: 19px;
+      width: 337px;
+      height: 46px;
+      background: #181818;
+      border-radius: 7.5px;
+      overflow: hidden;
+    }
+
+    .station-name {
+      font-size: 26px;
+      font-weight: 600;
+      color: #dfa11b;
+      white-space: nowrap;
+      position: absolute;
+      left: 0;
+      top: 50%;
+      will-change: transform;
+    }
+
+    /* Info rows */
+    .info-row {
+      position: absolute;
+      left: 19px;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .info-label {
+      font-size: 11px;
+      font-weight: 800;
+      color: #717171;
+      line-height: 1.3;
+      width: 56px;
+      flex-shrink: 0;
+      padding-top: 10px;
+    }
+
+    .info-value {
+      font-size: 86px;
+      font-weight: 200;
+      color: #a7a7a7;
+      letter-spacing: -4.3px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .row-departure { top: 360px; }
+    .row-bound     { top: 457px; }
+    .row-train     { top: 554px; }
+
+    /* Status line (errors / progress) */
+    .status {
+      position: absolute;
+      bottom: 24px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: #717171;
+      padding: 0 24px;
+      line-height: 1.5;
+    }
+    .status.err { color: #e0683f; }
+  </style>
 </head>
 <body>
+  <div class="app">
 
-    <button id="btn-miss-you">Miss You...</button>
-
-    <div id="result-container">
-        <div id="subtitle">THE NEAREST STATION</div>
-        <div class="marquee-wrapper">
-            <h1 id="station-name">Loading...</h1>
-        </div>
-        
-        <div id="train-info">
-            <div class="train-card">
-                <span class="train-direction">SOUTHBOUND (順行)</span>
-                <span class="train-detail"><span class="train-time" id="south-time">--:--</span> TO <span id="south-dest">---</span></span>
-            </div>
-            <div class="train-card">
-                <span class="train-direction">NORTHBOUND (逆行)</span>
-                <span class="train-detail"><span class="train-time" id="north-time">--:--</span> TO <span id="north-dest">---</span></span>
-            </div>
-        </div>
+    <!-- ============ Splash / loading screen (Figma) ============ -->
+    <div class="splash" id="splash">
+      <div class="splash-zh">想你的時候<br>搭上最後一班的列車</div>
+      <div class="splash-en">Thinking of you,<br>I catch the last train.</div>
+      <div class="splash-hint">tap anywhere</div>
     </div>
 
-    <script>
-        const TDX_CLIENT_ID = 'ethanchen1984-04c214cd-35f4-4327';     
-        const TDX_CLIENT_SECRET = '08274605-4c57-402b-93cc-9caabc1736cf'; 
+    <!-- ============ Main UI ============ -->
+    <div class="ui" id="ui">
+      <!-- Header -->
+      <div class="header">
+        <div class="header-icon"><span id="compassA">A</span></div>
+        <span class="header-label">the Last Train Departs in</span>
+      </div>
 
-        const stations = [
-          { "id": "0900", "name": "Keelung", "lat": 25.13191, "lon": 121.73837 },
-          { "id": "0910", "name": "Sankeng", "lat": 25.12305, "lon": 121.74202 },
-          { "id": "0920", "name": "Badu", "lat": 25.10838, "lon": 121.72904 },
-          { "id": "0930", "name": "Qidu", "lat": 25.09294, "lon": 121.71415 },
-          { "id": "0940", "name": "Baifu", "lat": 25.07795, "lon": 121.69379 },
-          { "id": "0950", "name": "Wudu", "lat": 25.07799, "lon": 121.66758 },
-          { "id": "0960", "name": "Xizhi", "lat": 25.0679, "lon": 121.66113 },
-          { "id": "0970", "name": "Xike", "lat": 25.06406, "lon": 121.65233 },
-          { "id": "0980", "name": "Nangang", "lat": 25.05348, "lon": 121.60706 },
-          { "id": "0990", "name": "Songshan", "lat": 25.04927, "lon": 121.57906 },
-          { "id": "1000", "name": "Taipei", "lat": 25.04775, "lon": 121.51711 },
-          { "id": "1001", "name": "Taipei Surround Island", "lat": 25.04774, "lon": 121.51711 },
-          { "id": "1010", "name": "Wanhua", "lat": 25.03339, "lon": 121.49996 },
-          { "id": "1020", "name": "Banqiao", "lat": 25.01434, "lon": 121.46377 },
-          { "id": "1030", "name": "Fuzhou", "lat": 25.00419, "lon": 121.44477 },
-          { "id": "1040", "name": "Shulin", "lat": 24.99123, "lon": 121.42442 },
-          { "id": "1050", "name": "South Shulin", "lat": 24.98044, "lon": 121.40884 },
-          { "id": "1060", "name": "Shanjia", "lat": 24.97273, "lon": 121.39254 },
-          { "id": "1070", "name": "Yingge", "lat": 24.95455, "lon": 121.35517 },
-          { "id": "1075", "name": "Fengming", "lat": 24.97268, "lon": 121.33658 },
-          { "id": "1080", "name": "Taoyuan", "lat": 24.98888, "lon": 121.31449 },
-          { "id": "1090", "name": "Neili", "lat": 24.97281, "lon": 121.25826 },
-          { "id": "1100", "name": "Zhongli_Taoyuan", "lat": 24.95374, "lon": 121.22589 },
-          { "id": "1110", "name": "Puxin", "lat": 24.91939, "lon": 121.18363 },
-          { "id": "1120", "name": "Yangmei", "lat": 24.91427, "lon": 121.14637 },
-          { "id": "1130", "name": "Fugang", "lat": 24.93436, "lon": 121.08309 },
-          { "id": "1140", "name": "Xinfu", "lat": 24.93109, "lon": 121.06751 },
-          { "id": "1150", "name": "Beihu", "lat": 24.92218, "lon": 121.05575 },
-          { "id": "1160", "name": "Hukou", "lat": 24.90303, "lon": 121.04412 },
-          { "id": "1170", "name": "Xinfeng", "lat": 24.86939, "lon": 120.99626 },
-          { "id": "1180", "name": "Zhubei", "lat": 24.83919, "lon": 121.00946 },
-          { "id": "1190", "name": "North Hsinchu", "lat": 24.80875, "lon": 120.98381 },
-          { "id": "1191", "name": "Qianjia", "lat": 24.80657, "lon": 121.0034 },
-          { "id": "1192", "name": "Xinzhuang", "lat": 24.78811, "lon": 121.02196 },
-          { "id": "1193", "name": "Zhuzhong", "lat": 24.78145, "lon": 121.03141 },
-          { "id": "1194", "name": "Liujia", "lat": 24.80766, "lon": 121.03941 },
-          { "id": "1201", "name": "Shangyuan", "lat": 24.77776, "lon": 121.05582 },
-          { "id": "1202", "name": "Ronghua", "lat": 24.74839, "lon": 121.08319 },
-          { "id": "1203", "name": "Zhudong", "lat": 24.73823, "lon": 121.09472 },
-          { "id": "1204", "name": "Hengshan", "lat": 24.72041, "lon": 121.11772 },
-          { "id": "1205", "name": "Jiuzantou", "lat": 24.72062, "lon": 121.13622 },
-          { "id": "1206", "name": "Hexing", "lat": 24.71667, "lon": 121.15437 },
-          { "id": "1207", "name": "Fugui", "lat": 24.71551, "lon": 121.16743 },
-          { "id": "1208", "name": "Neiwan", "lat": 24.70535, "lon": 121.18255 },
-          { "id": "1210", "name": "Hsinchu", "lat": 24.80157, "lon": 120.97157 },
-          { "id": "1220", "name": "Sanxingqiao", "lat": 24.78731, "lon": 120.92844 },
-          { "id": "1230", "name": "Xiangshan", "lat": 24.76311, "lon": 120.91388 },
-          { "id": "1240", "name": "Qiding", "lat": 24.72291, "lon": 120.87183 },
-          { "id": "1250", "name": "Zhunan", "lat": 24.68654, "lon": 120.88041 },
-          { "id": "1998", "name": "Shulin Rail Yard", "lat": 24.97992, "lon": 121.40554 },
-          { "id": "2110", "name": "Tanwen", "lat": 24.65641, "lon": 120.85825 },
-          { "id": "2120", "name": "Dashan", "lat": 24.64565, "lon": 120.80376 },
-          { "id": "2130", "name": "Houlong", "lat": 24.61621, "lon": 120.78731 },
-          { "id": "2140", "name": "Longgang", "lat": 24.61169, "lon": 120.75812 },
-          { "id": "2150", "name": "Baishatun", "lat": 24.56481, "lon": 120.70824 },
-          { "id": "2160", "name": "Xinpu", "lat": 24.54018, "lon": 120.69518 },
-          { "id": "2170", "name": "Tongxiao", "lat": 24.49141, "lon": 120.67843 },
-          { "id": "2180", "name": "Yuanli", "lat": 24.44344, "lon": 120.65146 },
-          { "id": "2190", "name": "Rinan", "lat": 24.37815, "lon": 120.65412 },
-          { "id": "2200", "name": "Dajia", "lat": 24.34448, "lon": 120.62702 },
-          { "id": "2210", "name": "Taichung Port", "lat": 24.30441, "lon": 120.60231 },
-          { "id": "2220", "name": "Qingshui", "lat": 24.26364, "lon": 120.56918 },
-          { "id": "2230", "name": "Shalu", "lat": 24.23702, "lon": 120.55752 },
-          { "id": "2240", "name": "Longjing", "lat": 24.19748, "lon": 120.54335 },
-          { "id": "2250", "name": "Dadu", "lat": 24.15417, "lon": 120.54249 },
-          { "id": "2260", "name": "Zhuifen", "lat": 24.12051, "lon": 120.57018 },
-          { "id": "3140", "name": "Zaoqiao", "lat": 24.64186, "lon": 120.86721 },
-          { "id": "3150", "name": "Fengfu", "lat": 24.60429, "lon": 120.82637 },
-          { "id": "3160", "name": "Miaoli", "lat": 24.57001, "lon": 120.82233 },
-          { "id": "3170", "name": "Nanshi", "lat": 24.52246, "lon": 120.79154 },
-          { "id": "3180", "name": "Tongluo", "lat": 24.48634, "lon": 120.78617 },
-          { "id": "3190", "name": "Sanyi", "lat": 24.42066, "lon": 120.77393 },
-          { "id": "3210", "name": "Tai'an", "lat": 24.33146, "lon": 120.74181 },
-          { "id": "3220", "name": "Houli", "lat": 24.30933, "lon": 120.73288 },
-          { "id": "3230", "name": "Fengyuan", "lat": 24.25438, "lon": 120.72374 },
-          { "id": "3240", "name": "Lilin", "lat": 24.23461, "lon": 120.7106 },
-          { "id": "3250", "name": "Tanzi", "lat": 24.21214, "lon": 120.70564 },
-          { "id": "3260", "name": "Toujiacuo", "lat": 24.19572, "lon": 120.70398 },
-          { "id": "3270", "name": "Songzhu", "lat": 24.18035, "lon": 120.70193 },
-          { "id": "3280", "name": "Taiyuan", "lat": 24.16449, "lon": 120.69988 },
-          { "id": "3290", "name": "Jingwu", "lat": 24.14887, "lon": 120.69784 },
-          { "id": "3300", "name": "Taichung", "lat": 24.13728, "lon": 120.68691 },
-          { "id": "3310", "name": "Wuquan", "lat": 24.12877, "lon": 120.66654 },
-          { "id": "3320", "name": "Daqing", "lat": 24.11911, "lon": 120.64795 },
-          { "id": "3330", "name": "Wuri", "lat": 24.10867, "lon": 120.62244 },
-          { "id": "3340", "name": "Xinwuri", "lat": 24.10937, "lon": 120.61421 },
-          { "id": "3350", "name": "Chenggong", "lat": 24.11424, "lon": 120.59021 },
-          { "id": "3360", "name": "Changhua", "lat": 24.08177, "lon": 120.53854 },
-          { "id": "3370", "name": "Huatan", "lat": 24.02502, "lon": 120.53742 },
-          { "id": "3380", "name": "Dacun", "lat": 23.99002, "lon": 120.56062 },
-          { "id": "3390", "name": "Yuanlin", "lat": 23.95947, "lon": 120.56977 },
-          { "id": "3400", "name": "Yongjing", "lat": 23.92808, "lon": 120.57173 },
-          { "id": "3410", "name": "Shetou", "lat": 23.89573, "lon": 120.58077 },
-          { "id": "3420", "name": "Tianzhong", "lat": 23.85843, "lon": 120.59146 },
-          { "id": "3430", "name": "Ershui", "lat": 23.81321, "lon": 120.61805 },
-          { "id": "3431", "name": "Yuanquan", "lat": 23.79845, "lon": 120.64211 },
-          { "id": "3432", "name": "Zhuoshui", "lat": 23.83467, "lon": 120.70467 },
-          { "id": "3433", "name": "Longquan", "lat": 23.83521, "lon": 120.75014 },
-          { "id": "3434", "name": "Jiji", "lat": 23.82647, "lon": 120.78495 },
-          { "id": "3435", "name": "Shuili", "lat": 23.81845, "lon": 120.85332 },
-          { "id": "3436", "name": "Checheng", "lat": 23.83263, "lon": 120.86572 },
-          { "id": "3450", "name": "Linnei", "lat": 23.75967, "lon": 120.61499 },
-          { "id": "3460", "name": "Shiliu", "lat": 23.73167, "lon": 120.57998 },
-          { "id": "3470", "name": "Douliu", "lat": 23.71184, "lon": 120.54099 },
-          { "id": "3480", "name": "Dounan", "lat": 23.67257, "lon": 120.48089 },
-          { "id": "3490", "name": "Shigui", "lat": 23.63951, "lon": 120.47106 },
-          { "id": "4050", "name": "Dalin", "lat": 23.60089, "lon": 120.45597 },
-          { "id": "4060", "name": "Minxiong", "lat": 23.55522, "lon": 120.43165 },
-          { "id": "4070", "name": "Jiabei", "lat": 23.49981, "lon": 120.44851 },
-          { "id": "4080", "name": "Chiayi", "lat": 23.47915, "lon": 120.44114 },
-          { "id": "4090", "name": "Shuishang", "lat": 23.43398, "lon": 120.39971 },
-          { "id": "4100", "name": "Nanjing", "lat": 23.41344, "lon": 120.38654 },
-          { "id": "4110", "name": "Houbi", "lat": 23.36626, "lon": 120.36058 },
-          { "id": "4120", "name": "Xinying", "lat": 23.30673, "lon": 120.32307 },
-          { "id": "4130", "name": "Liuying", "lat": 23.27762, "lon": 120.32252 },
-          { "id": "4140", "name": "Linfengying", "lat": 23.24259, "lon": 120.32107 },
-          { "id": "4150", "name": "Longtian", "lat": 23.19271, "lon": 120.31917 },
-          { "id": "4160", "name": "Balin", "lat": 23.17284, "lon": 120.32125 },
-          { "id": "4170", "name": "Shanhua", "lat": 23.13333, "lon": 120.30653 },
-          { "id": "4180", "name": "Nanke", "lat": 23.10726, "lon": 120.30202 },
-          { "id": "4190", "name": "Xinshi", "lat": 23.06823, "lon": 120.29004 },
-          { "id": "4200", "name": "Yongkang", "lat": 23.03825, "lon": 120.25347 },
-          { "id": "4210", "name": "Daqiao", "lat": 23.01923, "lon": 120.22429 },
-          { "id": "4220", "name": "Tainan", "lat": 22.99681, "lon": 120.21295 },
-          { "id": "4250", "name": "Bao'an", "lat": 22.93296, "lon": 120.23158 },
-          { "id": "4260", "name": "Rende", "lat": 22.92354, "lon": 120.24054 },
-          { "id": "4270", "name": "Zhongzhou", "lat": 22.90446, "lon": 120.25284 },
-          { "id": "4271", "name": "Chang Jung Christian University", "lat": 22.90729, "lon": 120.27263 },
-          { "id": "4272", "name": "Shalun", "lat": 22.92407, "lon": 120.28622 },
-          { "id": "4290", "name": "Dahu", "lat": 22.87821, "lon": 120.25384 },
-          { "id": "4300", "name": "Luzhu", "lat": 22.85404, "lon": 120.26619 },
-          { "id": "4310", "name": "Gangshan", "lat": 22.79223, "lon": 120.30004 },
-          { "id": "4320", "name": "Qiaotou", "lat": 22.76098, "lon": 120.31011 },
-          { "id": "4330", "name": "Nanzi", "lat": 22.72696, "lon": 120.32425 },
-          { "id": "4340", "name": "Xinzuoying", "lat": 22.68754, "lon": 120.30678 },
-          { "id": "4350", "name": "Zuoying", "lat": 22.67445, "lon": 120.29401 },
-          { "id": "4360", "name": "Neiwei", "lat": 22.66589, "lon": 120.28701 },
-          { "id": "4370", "name": "Museum of Fine Arts", "lat": 22.65185, "lon": 120.28148 },
-          { "id": "4380", "name": "Gushan", "lat": 22.64181, "lon": 120.28071 },
-          { "id": "4390", "name": "Sankuaicuo", "lat": 22.63931, "lon": 120.29414 },
-          { "id": "4400", "name": "Kaohsiung", "lat": 22.63946, "lon": 120.30292 },
-          { "id": "4410", "name": "Minzu", "lat": 22.63879, "lon": 120.31494 },
-          { "id": "4420", "name": "Science And Technology Museum", "lat": 22.63709, "lon": 120.32603 },
-          { "id": "4430", "name": "Zhengyi", "lat": 22.63425, "lon": 120.34245 },
-          { "id": "4440", "name": "Fongshan", "lat": 22.63145, "lon": 120.35745 },
-          { "id": "4450", "name": "Houzhuang", "lat": 22.64016, "lon": 120.39131 },
-          { "id": "4460", "name": "Jiuqutang", "lat": 22.65641, "lon": 120.42089 },
-          { "id": "4470", "name": "Liukuaicuo", "lat": 22.66597, "lon": 120.46497 },
-          { "id": "5000", "name": "Pingtung", "lat": 22.66905, "lon": 120.48617 },
-          { "id": "5010", "name": "Guilai", "lat": 22.65246, "lon": 120.50263 },
-          { "id": "5020", "name": "Linluo", "lat": 22.63481, "lon": 120.51432 },
-          { "id": "5030", "name": "Xishi", "lat": 22.61637, "lon": 120.52649 },
-          { "id": "5040", "name": "Zhutian", "lat": 22.58658, "lon": 120.53978 },
-          { "id": "5050", "name": "Chaozhou", "lat": 22.55008, "lon": 120.53604 },
-          { "id": "5060", "name": "Kanding", "lat": 22.51311, "lon": 120.51481 },
-          { "id": "5070", "name": "Nanzhou", "lat": 22.49207, "lon": 120.51174 },
-          { "id": "5080", "name": "Zhen'an", "lat": 22.45794, "lon": 120.51129 },
-          { "id": "5090", "name": "Linbian", "lat": 22.43135, "lon": 120.51529 },
-          { "id": "5100", "name": "Jiadong", "lat": 22.41409, "lon": 120.54774 },
-          { "id": "5110", "name": "Donghai", "lat": 22.39897, "lon": 120.57236 },
-          { "id": "5120", "name": "Fangliao", "lat": 22.36802, "lon": 120.59511 },
-          { "id": "5130", "name": "Jialu", "lat": 22.33085, "lon": 120.62445 },
-          { "id": "5140", "name": "Neishi", "lat": 22.30617, "lon": 120.64331 },
-          { "id": "5160", "name": "Fangshan", "lat": 22.26704, "lon": 120.65947 },
-          { "id": "5170", "name": "Fangye", "lat": 22.28091, "lon": 120.71709 },
-          { "id": "5190", "name": "Dawu", "lat": 22.36526, "lon": 120.90094 },
-          { "id": "5200", "name": "Longxi", "lat": 22.46102, "lon": 120.94176 },
-          { "id": "5210", "name": "Jinlun", "lat": 22.53161, "lon": 120.96721 },
-          { "id": "5220", "name": "Taimali", "lat": 22.61883, "lon": 121.00492 },
-          { "id": "5230", "name": "Zhiben", "lat": 22.71022, "lon": 121.06068 },
-          { "id": "5240", "name": "Kangle", "lat": 22.76426, "lon": 121.09356 },
-          { "id": "5998", "name": "South", "lat": 22.52755, "lon": 120.53658 },
-          { "id": "5999", "name": "Chaozhou Railway Workshop", "lat": 22.52231, "lon": 120.52642 },
-          { "id": "6000", "name": "Taitung", "lat": 22.79372, "lon": 121.1231 },
-          { "id": "6010", "name": "Shanli", "lat": 22.86194, "lon": 121.13778 },
-          { "id": "6020", "name": "Luye", "lat": 22.91249, "lon": 121.13701 },
-          { "id": "6030", "name": "Ruiyuan", "lat": 22.95604, "lon": 121.15901 },
-          { "id": "6040", "name": "Ruihe", "lat": 22.97997, "lon": 121.15595 },
-          { "id": "6050", "name": "Guanshan", "lat": 23.04566, "lon": 121.1643 },
-          { "id": "6060", "name": "Haiduan", "lat": 23.10292, "lon": 121.17676 },
-          { "id": "6070", "name": "Chishang", "lat": 23.12613, "lon": 121.21949 },
-          { "id": "6080", "name": "Fuli", "lat": 23.17924, "lon": 121.24864 },
-          { "id": "6090", "name": "Dongzhu", "lat": 23.22605, "lon": 121.27842 },
-          { "id": "6100", "name": "Dongli", "lat": 23.27234, "lon": 121.30418 },
-          { "id": "6110", "name": "Yuli", "lat": 23.33155, "lon": 121.31172 },
-          { "id": "6120", "name": "Sanmin", "lat": 23.42458, "lon": 121.34539 },
-          { "id": "6130", "name": "Ruisui", "lat": 23.49738, "lon": 121.37684 },
-          { "id": "6140", "name": "Fuyuan", "lat": 23.58031, "lon": 121.38008 },
-          { "id": "6150", "name": "Dafu", "lat": 23.60571, "lon": 121.38963 },
-          { "id": "6160", "name": "Guangfu", "lat": 23.66631, "lon": 121.42117 },
-          { "id": "6170", "name": "Wanrong", "lat": 23.71199, "lon": 121.41907 },
-          { "id": "6180", "name": "Fenglin", "lat": 23.74634, "lon": 121.44701 },
-          { "id": "6190", "name": "Nanping", "lat": 23.78231, "lon": 121.45824 },
-          { "id": "6200", "name": "Linrong Shin Kong", "lat": 23.80176, "lon": 121.46169 },
-          { "id": "6210", "name": "Fengtian", "lat": 23.84842, "lon": 121.49618 },
-          { "id": "6220", "name": "Shoufeng", "lat": 23.86901, "lon": 121.51064 },
-          { "id": "6230", "name": "Pinghe", "lat": 23.88279, "lon": 121.52045 },
-          { "id": "6240", "name": "Zhixue", "lat": 23.90769, "lon": 121.5295 },
-          { "id": "6250", "name": "Ji'an", "lat": 23.96823, "lon": 121.58266 },
-          { "id": "7000", "name": "Hualien", "lat": 23.99265, "lon": 121.60131 },
-          { "id": "7010", "name": "Beipu", "lat": 24.03253, "lon": 121.60166 },
-          { "id": "7020", "name": "Jingmei", "lat": 24.09041, "lon": 121.61095 },
-          { "id": "7030", "name": "Xincheng", "lat": 24.12756, "lon": 121.64086 },
-          { "id": "7040", "name": "Chongde", "lat": 24.17199, "lon": 121.65536 },
-          { "id": "7050", "name": "Heren", "lat": 24.24225, "lon": 121.71182 },
-          { "id": "7060", "name": "Heping", "lat": 24.29839, "lon": 121.75344 },
-          { "id": "7070", "name": "Hanben", "lat": 24.33543, "lon": 121.76838 },
-          { "id": "7080", "name": "Wuta", "lat": 24.44879, "lon": 121.77601 },
-          { "id": "7090", "name": "Nan'ao", "lat": 24.46342, "lon": 121.80103 },
-          { "id": "7100", "name": "Dong'ao", "lat": 24.51827, "lon": 121.83072 },
-          { "id": "7110", "name": "Yongle", "lat": 24.56843, "lon": 121.84458 },
-          { "id": "7120", "name": "Su'ao", "lat": 24.59516, "lon": 121.85143 },
-          { "id": "7130", "name": "Su'aoxin", "lat": 24.60852, "lon": 121.82735 },
-          { "id": "7140", "name": "Xinma", "lat": 24.61541, "lon": 121.82291 },
-          { "id": "7150", "name": "Dongshan", "lat": 24.63633, "lon": 121.79211 },
-          { "id": "7160", "name": "Luodong", "lat": 24.67791, "lon": 121.77464 },
-          { "id": "7170", "name": "Zhongli_Yilan", "lat": 24.69415, "lon": 121.77526 },
-          { "id": "7180", "name": "Erjie", "lat": 24.70528, "lon": 121.77409 },
-          { "id": "7190", "name": "Yilan", "lat": 24.75457, "lon": 121.75803 },
-          { "id": "7200", "name": "Sicheng", "lat": 24.78681, "lon": 121.76271 },
-          { "id": "7210", "name": "Jiaoxi", "lat": 24.82703, "lon": 121.77535 },
-          { "id": "7220", "name": "Dingpu", "lat": 24.84391, "lon": 121.80913 },
-          { "id": "7230", "name": "Toucheng", "lat": 24.85898, "lon": 121.82258 },
-          { "id": "7240", "name": "Wai'ao", "lat": 24.88375, "lon": 121.84572 },
-          { "id": "7250", "name": "Guishan", "lat": 24.90484, "lon": 121.8689 },
-          { "id": "7260", "name": "Daxi", "lat": 24.93836, "lon": 121.88983 },
-          { "id": "7270", "name": "Dali", "lat": 24.96677, "lon": 121.92253 },
-          { "id": "7280", "name": "Shicheng", "lat": 24.97832, "lon": 121.94507 },
-          { "id": "7290", "name": "Fulong", "lat": 25.01595, "lon": 121.94471 },
-          { "id": "7300", "name": "Gongliao", "lat": 25.02197, "lon": 121.90879 },
-          { "id": "7310", "name": "Shuangxi", "lat": 25.03851, "lon": 121.86654 },
-          { "id": "7320", "name": "Mudan", "lat": 25.05871, "lon": 121.85197 },
-          { "id": "7330", "name": "Sandiaoling", "lat": 25.06555, "lon": 121.82257 },
-          { "id": "7331", "name": "Dahua", "lat": 25.04998, "lon": 121.79732 },
-          { "id": "7332", "name": "Shifen", "lat": 25.04111, "lon": 121.77514 },
-          { "id": "7333", "name": "Wanggu", "lat": 25.03445, "lon": 121.76349 },
-          { "id": "7334", "name": "Lingjiao", "lat": 25.03016, "lon": 121.74795 },
-          { "id": "7335", "name": "Pingxi", "lat": 25.02571, "lon": 121.74019 },
-          { "id": "7336", "name": "Jingtong", "lat": 25.02391, "lon": 121.72391 },
-          { "id": "7350", "name": "Houtong", "lat": 25.08702, "lon": 121.82743 },
-          { "id": "7360", "name": "Ruifang", "lat": 25.10872, "lon": 121.80599 },
-          { "id": "7361", "name": "Haikeguan", "lat": 25.13754, "lon": 121.79997 },
-          { "id": "7362", "name": "Badouzi", "lat": 25.13528, "lon": 121.80286 },
-          { "id": "7380", "name": "Sijiaoting", "lat": 25.10281, "lon": 121.76195 },
-          { "id": "7390", "name": "Nuannuan", "lat": 25.10231, "lon": 121.74031 }
-        ];
+      <!-- Countdown -->
+      <div class="countdown" id="countdown">
+        <span class="seg" id="cd-h">--</span><span class="colon" id="colon1">:</span><span class="seg" id="cd-m">--</span><span class="colon" id="colon2">:</span><span class="seg" id="cd-s">--</span>
+      </div>
 
-        const btn = document.getElementById('btn-miss-you');
-        const resultContainer = document.getElementById('result-container');
-        const stationNameEl = document.getElementById('station-name');
-        const trainInfoEl = document.getElementById('train-info');
-        
-        const southTimeEl = document.getElementById('south-time');
-        const southDestEl = document.getElementById('south-dest');
-        const northTimeEl = document.getElementById('north-time');
-        const northDestEl = document.getElementById('north-dest');
+      <!-- Nearest Station -->
+      <div class="nearest-label">Nearest Station</div>
+      <div class="nearest-distance">
+        <span class="dist-value" id="distValue">----m</span>
+        <span class="dist-unit"> away from you</span>
+      </div>
+      <div class="station-badge">
+        <span class="station-name" id="stationName">Locating…</span>
+      </div>
 
-        function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-            const R = 6371; 
-            const dLat = deg2rad(lat2 - lat1);
-            const dLon = deg2rad(lon2 - lon1);
-            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-                      Math.sin(dLon/2) * Math.sin(dLon/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c; 
-        }
+      <!-- Departure -->
+      <div class="info-row row-departure">
+        <div class="info-label">Departure<br>at</div>
+        <div class="info-value" id="depValue">--<span class="colon">:</span>--</div>
+      </div>
 
-        function deg2rad(deg) { return deg * (Math.PI / 180); }
+      <!-- Bound For -->
+      <div class="info-row row-bound">
+        <div class="info-label">Bound<br>For</div>
+        <div class="info-value" id="boundValue">—</div>
+      </div>
 
-        function getMockTrainData() {
-            return {
-                south: { time: '23:45', destination: 'CHAOZHOU' },
-                north: { time: '23:58', destination: 'KEELUNG' }
-            };
-        }
+      <!-- Train Number -->
+      <div class="info-row row-train">
+        <div class="info-label">Train<br>Number</div>
+        <div class="info-value" id="trainValue">—</div>
+      </div>
 
-        async function getTdxToken() {
-            const tokenUrl = 'https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token';
-            const params = new URLSearchParams();
-            params.append('grant_type', 'client_credentials');
-            params.append('client_id', TDX_CLIENT_ID);
-            params.append('client_secret', TDX_CLIENT_SECRET);
+      <div class="status" id="status"></div>
+    </div>
 
-            console.log('正在向 TDX 請求 Access Token...');
-            try {
-                const response = await fetch(tokenUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: params
-                });
-                const data = await response.json();
-                if (data.access_token) {
-                    console.log('✅ 成功取得 TDX Access Token!');
-                } else {
-                    console.warn('⚠️ 無法取得 Token，請檢查金鑰是否正確。', data);
-                }
-                return data.access_token;
-            } catch (error) {
-                console.error('❌ 獲取 TDX Token 發生網路錯誤:', error);
-                return null;
-            }
-        }
+  </div>
 
-        async function fetchLastTrains(stationId) {
-            if (!TDX_CLIENT_ID || !TDX_CLIENT_SECRET) {
-                console.log("⚠️ 未提供 TDX 金鑰，將使用模擬時刻表資料展示畫面。");
-                return getMockTrainData();
-            }
+  <script>
+  /* ====================================================================
+     TDX 交通部運輸資料流通服務 — API 金鑰 (請填入你自己的值)
+     申請：https://tdx.transportdata.tw/ → 會員中心 → 金鑰管理
+     ==================================================================== */
+  const TDX_CLIENT_ID     = 'YOUR_CLIENT_ID';      // ← 你的 Client ID
+  const TDX_CLIENT_SECRET = 'YOUR_CLIENT_SECRET';  // ← 你的 Client Secret
+  /* ==================================================================== */
 
-            const token = await getTdxToken();
-            if (!token) {
-                console.log("⚠️ Token 取得失敗，切換為模擬資料。");
-                return getMockTrainData(); 
-            }
+  const TDX_AUTH_URL = 'https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token';
+  const TDX_API_BASE = 'https://tdx.transportdata.tw/api/basic';
 
-            const today = new Date();
-            const dateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-            
-            const apiUrl = `https://tdx.transportdata.tw/api/basic/v2/Rail/TRA/DailyTimetable/Station/${stationId}/${dateString}?$format=JSON`;
-            
-            console.log(`正在請求時刻表資料...\n目標車站ID: ${stationId}\n日期: ${dateString}\nAPI URL: ${apiUrl}`);
+  // ---- DOM refs ----
+  const $ = (id) => document.getElementById(id);
+  const splashEl = $('splash');
+  const uiEl = $('ui');
+  const statusEl = $('status');
 
-            try {
-                const response = await fetch(apiUrl, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await response.json();
+  let userLat = null, userLon = null;
+  let targetStation = null;      // {id,name,lat,lon}
+  let stationBearing = null;     // bearing from user → station (deg, 0=N)
+  let deviceHeading = null;      // compass heading of device (deg, 0=N)
+  let departureTime = null;      // "HH:MM"
 
-                if (!Array.isArray(data)) {
-                    console.error("❌ TDX API 回傳格式錯誤或無資料。API原始回傳內容:", data);
-                    return getMockTrainData();
-                }
+  function setStatus(msg, isErr) {
+    statusEl.textContent = msg || '';
+    statusEl.classList.toggle('err', !!isErr);
+  }
 
-                console.log(`✅ 成功抓取時刻表！共取得 ${data.length} 筆班次資料。`);
-                
-                if (data.length > 0) {
-                    console.log("=== 🔍 TDX API 原始回傳資料範例 (前 3 筆) ===");
-                    console.log(data.slice(0, 3));
-                    console.log("==============================================");
-                }
+  /* ---------- Geometry helpers ---------- */
+  const toRad = (d) => d * Math.PI / 180;
+  const toDeg = (r) => r * 180 / Math.PI;
 
-                let southLast = null;
-                let northLast = null;
+  function haversine(lat1, lon1, lat2, lon2) {
+    const R = 6371000; // m
+    const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
 
-                data.forEach(item => {
-                    const direction = item.Direction; // 0:順行(北上), 1:逆行(南下)
-                    const departureTime = item.DepartureTime;
-                    const destination = item.EndingStationName?.En || item.EndingStationName?.Zh_tw || 'UNKNOWN';
+  function bearing(lat1, lon1, lat2, lon2) {
+    const y = Math.sin(toRad(lon2 - lon1)) * Math.cos(toRad(lat2));
+    const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+              Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(toRad(lon2 - lon1));
+    return (toDeg(Math.atan2(y, x)) + 360) % 360;
+  }
 
-                    if (direction === 1) { // 修正：1 為逆行 (西部幹線為南下)
-                        if (!southLast || departureTime > southLast.time) {
-                            southLast = { time: departureTime, destination: destination, trainNo: item.TrainNo };
-                        }
-                    } else if (direction === 0) { // 修正：0 為順行 (西部幹線為北上)
-                        if (!northLast || departureTime > northLast.time) {
-                            northLast = { time: departureTime, destination: destination, trainNo: item.TrainNo };
-                        }
-                    }
-                });
+  /* ---------- Compass arrow ---------- */
+  function updateArrow() {
+    if (stationBearing == null) return;
+    // If we have device heading, point relative to where the phone faces;
+    // otherwise just point to the absolute bearing (north-up).
+    const rel = deviceHeading == null ? stationBearing
+                                      : (stationBearing - deviceHeading + 360) % 360;
+    $('compassA').style.transform = `rotate(${rel}deg)`;
+  }
 
-                const result = {
-                    south: southLast || { time: '--:--', destination: 'NONE' },
-                    north: northLast || { time: '--:--', destination: 'NONE' }
-                };
+  /* ---------- Nearest station ---------- */
+  async function findNearestStation() {
+    const res = await fetch('stations.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error('無法讀取 stations.json');
+    const stations = await res.json();
 
-                console.log("=== 今日末班車資訊結算 ===");
-                if(southLast) {
-                    console.log(`🚅 [逆行/南下] 最晚班次: ${southLast.trainNo} 次, 發車時間: ${southLast.time}, 開往: ${southLast.destination}`);
-                } else {
-                    console.log(`🚅 [逆行/南下] 找不到任何班次資料。`);
-                }
-                
-                if(northLast) {
-                    console.log(`🚅 [順行/北上] 最晚班次: ${northLast.trainNo} 次, 發車時間: ${northLast.time}, 開往: ${northLast.destination}`);
-                } else {
-                     console.log(`🚅 [順行/北上] 找不到任何班次資料。`);
-                }
-                console.log("=========================");
+    let best = null, bestD = Infinity;
+    for (const s of stations) {
+      const d = haversine(userLat, userLon, s.lat, s.lon);
+      if (d < bestD) { bestD = d; best = s; }
+    }
+    targetStation = best;
+    targetStation.distance = bestD;
+    stationBearing = bearing(userLat, userLon, best.lat, best.lon);
+    updateArrow();
+    return best;
+  }
 
-                return result;
+  /* ---------- TDX auth + timetable ---------- */
+  async function getTdxToken() {
+    const body = new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: TDX_CLIENT_ID,
+      client_secret: TDX_CLIENT_SECRET
+    });
+    const res = await fetch(TDX_AUTH_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body
+    });
+    if (!res.ok) throw new Error('TDX 授權失敗 (' + res.status + ')');
+    const j = await res.json();
+    if (!j.access_token) throw new Error('TDX 未回傳 access_token');
+    return j.access_token;
+  }
 
-            } catch (error) {
-                console.error('❌ 獲取時刻表發生網路錯誤:', error);
-                return getMockTrainData();
-            }
-        }
+  function localDateStr() {
+    const n = new Date();
+    const p = (x) => String(x).padStart(2, '0');
+    return `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
+  }
 
-        async function processAndShow(lat, lon) {
-            let nearestStation = null;
-            let minDistance = Infinity;
+  const pickName = (v) => (v && typeof v === 'object') ? (v.En || v.Zh_tw || '') : (v || '');
 
-            stations.forEach(station => {
-                const dist = getDistanceFromLatLonInKm(lat, lon, station.lat, station.lon);
-                if (dist < minDistance) {
-                    minDistance = dist;
-                    nearestStation = station;
-                }
-            });
+  // Normalise one timetable entry (handles v2 + v3 shapes) → {dep, trainNo, boundFor}
+  function normaliseEntry(item, stationId) {
+    const info = item.DailyTrainInfo || item.TrainInfo || {};
+    const trainNo = info.TrainNo || '';
+    const boundFor = pickName(info.EndingStationName);
 
-            if (nearestStation) {
-                btn.textContent = 'FETCHING TRAINS...';
+    // v2: single StopTime object. v3: StopTimes array → find our station.
+    let dep = null;
+    if (item.StopTime) {
+      dep = item.StopTime.DepartureTime || item.StopTime.ArrivalTime;
+    } else if (Array.isArray(item.StopTimes)) {
+      const st = item.StopTimes.find(s => String(s.StationID) === String(stationId)) || item.StopTimes[0];
+      if (st) dep = st.DepartureTime || st.ArrivalTime;
+    }
+    return dep ? { dep, trainNo, boundFor } : null;
+  }
 
-                const lastTrains = await fetchLastTrains(nearestStation.id);
+  async function fetchLastTrain(token, stationId) {
+    const date = localDateStr();
+    const url = `${TDX_API_BASE}/v2/Rail/TRA/DailyTrainTimetable/Station/${stationId}/${date}?$format=JSON`;
+    const res = await fetch(url, { headers: { authorization: 'Bearer ' + token } });
+    if (!res.ok) throw new Error('TDX 時刻表查詢失敗 (' + res.status + ')');
+    const data = await res.json();
 
-                btn.style.opacity = '0';
-                
-                setTimeout(() => {
-                    btn.style.display = 'none';
-                    
-                    stationNameEl.textContent = nearestStation.name.toUpperCase();
-                    
-                    southTimeEl.textContent = lastTrains.south.time;
-                    southDestEl.textContent = lastTrains.south.destination.toUpperCase();
-                    northTimeEl.textContent = lastTrains.north.time;
-                    northDestEl.textContent = lastTrains.north.destination.toUpperCase();
+    // Response may be an array, or an object wrapping an array.
+    const list = Array.isArray(data)
+      ? data
+      : (data.TrainTimetables || data.StationTimetables || []);
 
-                    resultContainer.style.display = 'flex';
-                    setTimeout(() => {
-                        resultContainer.style.opacity = '1';
-                        
-                        setTimeout(() => {
-                            trainInfoEl.style.display = 'flex';
-                            setTimeout(() => {
-                                trainInfoEl.style.opacity = '1';
-                            }, 50);
-                        }, 800);
+    let latest = null;
+    for (const item of list) {
+      const e = normaliseEntry(item, stationId);
+      if (!e) continue;
+      if (!latest || e.dep > latest.dep) latest = e;   // lexical max → latest evening train
+    }
+    if (!latest) throw new Error('今日已無班次資料');
+    return latest;
+  }
 
-                    }, 50);
-                }, 500); 
-            }
-        }
+  /* ---------- Countdown ---------- */
+  let colonVisible = true;
+  let countdownTimer = null;
 
-        btn.addEventListener('click', () => {
-            btn.textContent = 'LOCATING...';
-            btn.style.transform = 'scale(0.95)';
+  function startCountdown() {
+    if (!departureTime) return;
+    const [depH, depM] = departureTime.split(':').map(Number);
 
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        processAndShow(position.coords.latitude, position.coords.longitude);
-                    },
-                    (error) => {
-                        console.warn('定位受限或失敗，改用預設座標 (新北市蘆洲區):', error.message || error);
-                        processAndShow(25.0822, 121.4655);
-                    },
-                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-                );
-            } else {
-                btn.textContent = 'NOT SUPPORTED';
-            }
-        });
-    </script>
+    function secondsUntil() {
+      const now = new Date();
+      const dep = new Date();
+      dep.setHours(depH, depM, 0, 0);
+      if (dep <= now) dep.setDate(dep.getDate() + 1);
+      return Math.max(0, Math.floor((dep - now) / 1000));
+    }
+    function tick() {
+      const s = secondsUntil();
+      $('cd-h').textContent = String(Math.floor(s / 3600)).padStart(2, '0');
+      $('cd-m').textContent = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+      $('cd-s').textContent = String(s % 60).padStart(2, '0');
+      colonVisible = !colonVisible;
+      document.querySelectorAll('.colon').forEach(el => el.classList.toggle('hidden', !colonVisible));
+    }
+    tick();
+    if (countdownTimer) clearInterval(countdownTimer);
+    countdownTimer = setInterval(tick, 1000);
+  }
+
+  /* ---------- Populate UI ---------- */
+  function setStationName(name) {
+    $('stationName').textContent = name;
+    if (window.__resetMarquee) window.__resetMarquee();
+  }
+
+  function setDepartureDisplay(hhmm) {
+    const [h, m] = hhmm.split(':');
+    $('depValue').innerHTML = `${h}<span class="colon">:</span>${m}`;
+  }
+
+  /* ---------- Sensors ---------- */
+  function getPosition() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject(new Error('此裝置不支援定位'));
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve(pos.coords),
+        (err) => reject(new Error('定位被拒絕或失敗：' + err.message)),
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    });
+  }
+
+  function handleOrientation(e) {
+    let heading = null;
+    if (typeof e.webkitCompassHeading === 'number') {
+      heading = e.webkitCompassHeading;            // iOS: already 0=N, clockwise
+    } else if (e.absolute && typeof e.alpha === 'number') {
+      heading = (360 - e.alpha) % 360;             // Android absolute
+    } else if (typeof e.alpha === 'number') {
+      heading = (360 - e.alpha) % 360;
+    }
+    if (heading != null && !Number.isNaN(heading)) {
+      deviceHeading = heading;
+      updateArrow();
+    }
+  }
+
+  async function enableOrientation() {
+    try {
+      const DOE = window.DeviceOrientationEvent;
+      if (DOE && typeof DOE.requestPermission === 'function') {
+        const perm = await DOE.requestPermission();   // iOS 13+
+        if (perm !== 'granted') return;
+      }
+      window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+      window.addEventListener('deviceorientation', handleOrientation, true);
+    } catch (_) { /* compass optional */ }
+  }
+
+  /* ---------- Main flow (triggered by tap) ---------- */
+  let started = false;
+  async function start() {
+    if (started) return;
+    started = true;
+
+    // Reveal UI, hide splash
+    splashEl.classList.add('hide');
+    uiEl.classList.add('show');
+
+    // Compass needs the user gesture to request permission (iOS)
+    enableOrientation();
+
+    try {
+      setStatus('定位中…');
+      const coords = await getPosition();
+      userLat = coords.latitude;
+      userLon = coords.longitude;
+
+      setStatus('搜尋最近車站…');
+      const st = await findNearestStation();
+      setStationName(st.name);
+      $('distValue').textContent = Math.round(st.distance) + 'm';
+
+      if (TDX_CLIENT_ID === 'YOUR_CLIENT_ID' || TDX_CLIENT_SECRET === 'YOUR_CLIENT_SECRET') {
+        setStatus('請在程式碼頂端填入 TDX 金鑰以取得班次', true);
+        return;
+      }
+
+      setStatus('查詢末班車…');
+      const token = await getTdxToken();
+      const last = await fetchLastTrain(token, st.id);
+
+      departureTime = last.dep.slice(0, 5);           // "HH:MM"
+      setDepartureDisplay(departureTime);
+      $('boundValue').textContent = last.boundFor || '—';
+      $('trainValue').textContent = last.trainNo || '—';
+      startCountdown();
+      setStatus('');
+    } catch (err) {
+      console.error(err);
+      setStatus(err.message || '發生錯誤', true);
+    }
+  }
+
+  splashEl.addEventListener('click', start);
+  splashEl.addEventListener('touchend', (e) => { e.preventDefault(); start(); }, { passive: false });
+
+  /* ---------- Station name marquee ---------- */
+  (function () {
+    const badge = document.querySelector('.station-badge');
+    const text = $('stationName');
+    const SPEED = 50, PAUSE = 3000, GAP = 24;
+    let badgeW, textW, startX, centerX, endX, phase, phaseStart, pauseUntil;
+
+    function measure() {
+      badgeW = badge.clientWidth;
+      textW = text.offsetWidth;
+      startX = badgeW + GAP;
+      centerX = (badgeW - textW) / 2;
+      endX = -textW - GAP;
+    }
+    function setX(x) { text.style.transform = `translate(${x}px, -50%)`; }
+    function reset(now) { measure(); phase = 'enter'; phaseStart = now; }
+    function frame(now) {
+      if (phase === 'enter') {
+        const dist = startX - centerX, t = (now - phaseStart) / 1000 * SPEED;
+        if (t >= dist) { setX(centerX); phase = 'pause'; pauseUntil = now + PAUSE; }
+        else setX(startX - t);
+      } else if (phase === 'pause') {
+        setX(centerX);
+        if (now >= pauseUntil) { phase = 'exit'; phaseStart = now; }
+      } else if (phase === 'exit') {
+        const dist = centerX - endX, t = (now - phaseStart) / 1000 * SPEED;
+        if (t >= dist) reset(now); else setX(centerX - t);
+      }
+      requestAnimationFrame(frame);
+    }
+    function init() { measure(); setX(startX); reset(performance.now()); requestAnimationFrame(frame); }
+    window.__resetMarquee = () => { measure(); reset(performance.now()); };
+
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(init);
+    else window.addEventListener('load', init);
+    window.addEventListener('resize', measure);
+  })();
+  </script>
 </body>
 </html>
