@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>the Last Train | v3.2.3</title>
+  <title>the Last Train</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@700&family=Manrope:wght@200;400;600;700;800&display=swap" rel="stylesheet" />
@@ -632,17 +632,24 @@
 
   // Only the dynamic values fade; static chrome (arrow, labels, colons,
   // black box, distance unit, field titles) stays on screen.
-  const FADE_IDS = ['countdown', 'nearestLabel', 'stationName', 'distValue', 'depValue', 'boundValue', 'trainValue'];
-  function setFadeOpacity(v) {
-    FADE_IDS.forEach(id => {
+  const FADE_IDS = ['countdown', 'stationName', 'distValue', 'depValue', 'boundValue', 'trainValue'];
+  function setFadeOpacity(v, ids) {
+    ids.forEach(id => {
       const el = $(id);
       if (el) { el.style.transition = 'opacity 0.5s ease'; el.style.opacity = v; }
     });
   }
 
   // Fade dynamic values out, swap station, fade back in — 1s easing total.
+  // The label only fades when its text actually changes (e.g. Nearest → Next);
+  // once it reads "Next Station" it stays put on further taps.
   async function transitionToStation(index, isNext) {
-    setFadeOpacity('0');                                // fade out (0.5s)
+    const newLabel = isNext ? 'Next Station' : 'Nearest Station';
+    const ids = $('nearestLabel').textContent !== newLabel
+      ? FADE_IDS.concat('nearestLabel')
+      : FADE_IDS;
+
+    setFadeOpacity('0', ids);                           // fade out (0.5s)
     await new Promise(r => setTimeout(r, 500));
     try {
       await applyStation(index, isNext);
@@ -650,7 +657,7 @@
       console.error(err);
       setStatus(err.message || '發生錯誤');
     }
-    setFadeOpacity('1');                                // fade in (0.5s)
+    setFadeOpacity('1', ids);                            // fade in (0.5s)
   }
 
   /* ---------- Main flow (triggered by tap on splash) ---------- */
