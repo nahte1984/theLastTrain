@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>the Last Train | v3.0</title>
+  <title>the Last Train | v3.1</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;400;600;700;800&family=Noto+Sans+TC:wght@300;500&display=swap" rel="stylesheet" />
@@ -306,8 +306,8 @@
      TDX 交通部運輸資料流通服務 — API 金鑰 (請填入你自己的值)
      申請：https://tdx.transportdata.tw/ → 會員中心 → 金鑰管理
      ==================================================================== */
-  const TDX_CLIENT_ID     = 'ethanchen1984-04c214cd-35f4-4327';      // ← 你的 Client ID
-  const TDX_CLIENT_SECRET = '08274605-4c57-402b-93cc-9caabc1736cf';  // ← 你的 Client Secret
+  const TDX_CLIENT_ID     = 'YOUR_CLIENT_ID';      // ← 你的 Client ID
+  const TDX_CLIENT_SECRET = 'YOUR_CLIENT_SECRET';  // ← 你的 Client Secret
   /* ==================================================================== */
 
   const TDX_AUTH_URL = 'https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token';
@@ -403,42 +403,81 @@
 
   const pickName = (v) => (v && typeof v === 'object') ? (v.En || v.Zh_tw || '') : (v || '');
 
-  // Normalise one timetable entry (handles v2 + v3 shapes) → {dep, trainNo, boundFor}
-  function normaliseEntry(item, stationId) {
-    const info = item.DailyTrainInfo || item.TrainInfo || {};
-    const trainNo = info.TrainNo || '';
-    const boundFor = pickName(info.EndingStationName);
+  // Flatten any TDX timetable response shape → [{dep, trainNo, boundFor}]
+  // Handles: v3 DailyStationTimetable, v3 DailyTrainTimetable, v2 array.
+  function extractTrains(data, stationId) {
+    const out = [];
+    const push = (dep, trainNo, boundFor) => {
+      if (dep && trainNo) out.push({ dep: String(dep).slice(0, 5), trainNo: String(trainNo), boundFor: boundFor || '' });
+    };
 
-    // v2: single StopTime object. v3: StopTimes array → find our station.
-    let dep = null;
-    if (item.StopTime) {
-      dep = item.StopTime.DepartureTime || item.StopTime.ArrivalTime;
-    } else if (Array.isArray(item.StopTimes)) {
-      const st = item.StopTimes.find(s => String(s.StationID) === String(stationId)) || item.StopTimes[0];
-      if (st) dep = st.DepartureTime || st.ArrivalTime;
+    // Shape A — v3 DailyStationTimetable: { StationTimetables:[{ Direction, TimeTables:[...] }] }
+    const stns = data && (data.StationTimetables || data.StationTimetable);
+    if (Array.isArray(stns)) {
+      for (const stt of stns) {
+        const rows = stt.TimeTables || stt.Timetables || stt.TimeTable || [];
+        for (const t of rows) {
+          const dep = t.DepartureTime || t.ArrivalTime;
+          const boundFor = pickName(t.EndingStationName || t.DestinationStationName || stt.EndingStationName);
+          push(dep, t.TrainNo, boundFor);
+        }
+      }
     }
-    return dep ? { dep, trainNo, boundFor } : null;
+
+    // Shape B — v3 DailyTrainTimetable: { TrainTimetables:[{ TrainInfo, StopTimes:[...] }] }
+    const tts = data && data.TrainTimetables;
+    if (Array.isArray(tts)) {
+      for (const item of tts) {
+        const info = item.TrainInfo || item.DailyTrainInfo || {};
+        const stops = item.StopTimes || [];
+        const st = stops.find(s => String(s.StationID) === String(stationId)) || stops[0];
+        const dep = st && (st.DepartureTime || st.ArrivalTime);
+        push(dep, info.TrainNo, pickName(info.EndingStationName));
+      }
+    }
+
+    // Shape C — v2 array: [{ DailyTrainInfo, StopTime:{...} }]
+    if (Array.isArray(data)) {
+      for (const item of data) {
+        const info = item.DailyTrainInfo || item.TrainInfo || {};
+        const st = item.StopTime || (Array.isArray(item.StopTimes) ? item.StopTimes[0] : null) || {};
+        const dep = st.DepartureTime || st.ArrivalTime;
+        push(dep, info.TrainNo, pickName(info.EndingStationName));
+      }
+    }
+    return out;
+  }
+
+  async function fetchTimetable(token, url) {
+    const res = await fetch(url, { headers: { authorization: 'Bearer ' + token } });
+    if (!res.ok) return { ok: false, status: res.status };
+    return { ok: true, data: await res.json() };
   }
 
   async function fetchLastTrain(token, stationId) {
     const date = localDateStr();
-    const url = `${TDX_API_BASE}/v2/Rail/TRA/DailyTrainTimetable/Station/${stationId}/${date}?$format=JSON`;
-    const res = await fetch(url, { headers: { authorization: 'Bearer ' + token } });
-    if (!res.ok) throw new Error('TDX 時刻表查詢失敗 (' + res.status + ')');
-    const data = await res.json();
+    // v2 Rail TRA endpoints have been deprecated → try v3 station timetable first.
+    const urls = [
+      `${TDX_API_BASE}/v3/Rail/TRA/DailyStationTimetable/TrainDate/${date}/Station/${stationId}?$format=JSON`,
+      `${TDX_API_BASE}/v3/Rail/TRA/DailyStationTimetable/Today/Station/${stationId}?$format=JSON`,
+      `${TDX_API_BASE}/v3/Rail/TRA/DailyTrainTimetable/TrainDate/${date}/Station/${stationId}?$format=JSON`,
+      `${TDX_API_BASE}/v2/Rail/TRA/DailyTrainTimetable/Station/${stationId}/${date}?$format=JSON`,
+    ];
 
-    // Response may be an array, or an object wrapping an array.
-    const list = Array.isArray(data)
-      ? data
-      : (data.TrainTimetables || data.StationTimetables || []);
-
-    let latest = null;
-    for (const item of list) {
-      const e = normaliseEntry(item, stationId);
-      if (!e) continue;
-      if (!latest || e.dep > latest.dep) latest = e;   // lexical max → latest evening train
+    let trains = [], lastStatus = 'no data';
+    for (const url of urls) {
+      try {
+        const r = await fetchTimetable(token, url);
+        if (!r.ok) { lastStatus = r.status; continue; }
+        trains = extractTrains(r.data, stationId);
+        if (trains.length) break;
+      } catch (e) { lastStatus = e.message; }
     }
-    if (!latest) throw new Error('今日已無班次資料');
+    if (!trains.length) throw new Error('TDX 時刻表查詢失敗 (' + lastStatus + ')');
+
+    // Latest departure of the day (lexical max on "HH:MM"), up or down bound.
+    let latest = trains[0];
+    for (const t of trains) if (t.dep > latest.dep) latest = t;
     return latest;
   }
 
