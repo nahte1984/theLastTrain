@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>the Last Train | v3.2.2</title>
+  <title>the Last Train</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@700&family=Manrope:wght@200;400;600;700;800&display=swap" rel="stylesheet" />
@@ -290,8 +290,8 @@
       <!-- Nearest Station -->
       <div class="nearest-label" id="nearestLabel">Nearest Station</div>
       <div class="nearest-distance">
-        <span class="dist-value" id="distValue">----</span>
-        <span class="dist-unit">m away from you</span>
+        <span class="dist-value" id="distValue">----m</span>
+        <span class="dist-unit"> away from you</span>
       </div>
       <div class="station-badge">
         <span class="station-name" id="stationName">Locating…</span>
@@ -611,7 +611,7 @@
 
     $('nearestLabel').textContent = isNext ? 'Next Station' : 'Nearest Station';
     setStationName(st.name);
-    $('distValue').textContent = Math.round(st.distance);
+    $('distValue').textContent = Math.round(st.distance) + 'm';
 
     if (keysMissing()) {
       setStatus('請在程式碼頂端填入 TDX 金鑰以取得班次');
@@ -632,7 +632,7 @@
 
   // Only the dynamic values fade; static chrome (arrow, labels, colons,
   // black box, distance unit, field titles) stays on screen.
-  const FADE_IDS = ['cd-h', 'cd-m', 'cd-s', 'stationName', 'distValue', 'depValue', 'boundValue', 'trainValue'];
+  const FADE_IDS = ['countdown', 'nearestLabel', 'stationName', 'distValue', 'depValue', 'boundValue', 'trainValue'];
   function setFadeOpacity(v) {
     FADE_IDS.forEach(id => {
       const el = $(id);
