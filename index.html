@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>the Last Train | v3.2</title>
+  <title>the Last Train</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@700&family=Manrope:wght@200;400;600;700;800&display=swap" rel="stylesheet" />
@@ -246,20 +246,21 @@
     .row-bound     { top: 310px; }
     .row-train     { top: 407px; }
 
-    /* Status line (errors / progress) */
+    /* Status line — fixed to the bottom of the viewport, auto fades out */
     .status {
-      position: absolute;
-      bottom: 24px;
+      position: fixed;
+      bottom: 5px;
       left: 0;
       width: 100%;
       text-align: center;
+      font-family: 'Manrope', 'BIZ UDGothic', sans-serif;
+      font-weight: 800;
       font-size: 12px;
-      font-weight: 600;
-      color: #717171;
-      padding: 0 24px;
+      color: #a7a7a7;
+      padding: 5px;
       line-height: 1.5;
+      opacity: 0;
     }
-    .status.err { color: #e0683f; }
   </style>
 </head>
 <body>
@@ -352,9 +353,23 @@
   let ready = false;             // initial station loaded → taps switch station
   let switching = false;         // guard against overlapping switches
 
-  function setStatus(msg, isErr) {
-    statusEl.textContent = msg || '';
-    statusEl.classList.toggle('err', !!isErr);
+  // Show a message at the bottom; it stays for 1s, then fades out.
+  let statusFadeTimer = null;
+  function setStatus(msg) {
+    clearTimeout(statusFadeTimer);
+    if (!msg) {
+      statusEl.style.transition = 'opacity 0.6s ease';
+      statusEl.style.opacity = '0';
+      return;
+    }
+    statusEl.textContent = msg;
+    statusEl.style.transition = 'none';
+    statusEl.style.opacity = '1';
+    statusEl.offsetHeight;                       // force reflow
+    statusFadeTimer = setTimeout(() => {
+      statusEl.style.transition = 'opacity 0.6s ease';
+      statusEl.style.opacity = '0';
+    }, 1000);
   }
 
   /* ---------- Geometry helpers ---------- */
@@ -602,7 +617,7 @@
     $('distValue').textContent = Math.round(st.distance) + 'm';
 
     if (keysMissing()) {
-      setStatus('請在程式碼頂端填入 TDX 金鑰以取得班次', true);
+      setStatus('請在程式碼頂端填入 TDX 金鑰以取得班次');
       return;
     }
 
@@ -627,7 +642,7 @@
       await applyStation(index, isNext);
     } catch (err) {
       console.error(err);
-      setStatus(err.message || '發生錯誤', true);
+      setStatus(err.message || '發生錯誤');
     }
     screenEl.classList.remove('swapping');             // fade in (0.5s)
   }
@@ -658,7 +673,7 @@
       ready = true;
     } catch (err) {
       console.error(err);
-      setStatus(err.message || '發生錯誤', true);
+      setStatus(err.message || '發生錯誤');
     }
   }
 
